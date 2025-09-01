@@ -1,0 +1,38 @@
+{
+  "greeting": "Bonjour",
+  "welcome_message": "Bienvenue dans notre application !",
+  "password": "Mot de passe",
+  "remember_me": "Se souvenir de moi",
+  "login": "Connexion",
+  "email": "Adresse e-mail",
+  "phone": "Numéro de téléphone",
+  "course": {
+    "title": "Titre du cours",
+    "subject": "Matière",
+    "select_subject": "Sélectionner une matière",
+    "proficiency_level": "Niveau de compétence",
+    "thumbnail": "Miniature du cours",
+    "description": "Description du cours",
+    "basic_info": "Informations de base",
+    "pricing_capacity": "Tarification et capacité",
+    "schedule": "Horaires",
+    "price_per_student": "Prix par étudiant",
+    "number_of_hours": "Heures minimum requises",
+    "min_students": "Étudiants minimum",
+    "max_students": "Étudiants maximum",
+    "day_of_week": "Jour de la semaine",
+    "start_time": "Heure de début",
+    "end_time": "Heure de fin",
+    "add_schedule": "Ajouter un créneau",
+    "remove_schedule": "Supprimer le créneau",
+    "schedule_hours_info": "Planifiées: {{scheduled}}h / Minimum: {{required}}h {{match}}",
+    "proficiency": {
+      "beginner": "Débutant (A1)",
+      "elementary": "Élémentaire (A2)",
+      "intermediate": "Intermédiaire (B1)",
+      "upper_intermediate": "Intermédiaire Supérieur (B2)",
+      "advanced": "Avancé (C1)",
+      "proficient": "Compétent (C2)"
+    }
+  }
+}

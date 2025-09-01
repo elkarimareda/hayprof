@@ -1,0 +1,58 @@
+<?php
+
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CourseController;
+use App\Http\Controllers\MediaController;
+use App\Http\Controllers\SubjectController;
+use App\Http\Controllers\LanguageController;
+use App\Http\Controllers\TeacherController;
+use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('api')->group(function () {
+  Route::post('/register', [AuthController::class, 'register']);
+  Route::post('/login', [AuthController::class, 'login']);
+  Route::post('/upload', [MediaController::class, 'upload']);
+
+  // Reference data endpoints (public)
+  Route::get('/subjects', [SubjectController::class, 'index']);
+  Route::get('/subjects/{id}', [SubjectController::class, 'show']);
+  Route::get('/languages', [LanguageController::class, 'index']);
+  Route::get('/languages/{id}', [LanguageController::class, 'show']);
+
+  // Public course browsing
+  Route::get('/courses/validated', [CourseController::class, 'validated']);
+
+  // Public teacher browsing
+  Route::get('/teachers', [TeacherController::class, 'index']);
+
+  Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/user', [AuthController::class, 'user']);
+    Route::put('/profile', [AuthController::class, 'updateProfile']);
+    Route::get('/teacher/profile/{id}', [TeacherController::class, 'profile']);
+    Route::get('/courses', [CourseController::class, 'index']);
+    Route::post('/courses', [CourseController::class, 'store']);
+
+    // Admin-only reference data management
+    Route::middleware('admin')->group(function () {
+      Route::post('/subjects', [SubjectController::class, 'store']);
+      Route::put('/subjects/{id}', [SubjectController::class, 'update']);
+      Route::delete('/subjects/{id}', [SubjectController::class, 'destroy']);
+
+      Route::post('/languages', [LanguageController::class, 'store']);
+      Route::put('/languages/{id}', [LanguageController::class, 'update']);
+      Route::delete('/languages/{id}', [LanguageController::class, 'destroy']);
+
+      // Course validation management
+      Route::get('/courses/pending-validation', [CourseController::class, 'pendingValidation']);
+      Route::post('/courses/{course}/validate', [CourseController::class, 'validateCourse']);
+      Route::post('/courses/{course}/reject', [CourseController::class, 'rejectCourse']);
+    });
+  });
+});
