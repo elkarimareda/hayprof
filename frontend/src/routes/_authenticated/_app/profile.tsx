@@ -778,10 +778,10 @@ function RouteComponent() {
                           {formatPrice(course.price_per_student)}/student
                         </span>
                       </div>
-                      <div className="flex items-center text-sm">
+                      {/* <div className="flex items-center text-sm">
                         <Clock className="w-4 h-4 mr-2 text-blue-600" />
                         <span>{course.number_of_hours} hours</span>
-                      </div>
+                      </div> */}
                       <div className="flex items-center text-sm">
                         <Users className="w-4 h-4 mr-2 text-purple-600" />
                         <span>

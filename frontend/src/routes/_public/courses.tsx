@@ -13,7 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, DollarSign, User, BookOpen } from "lucide-react";
+import { Users, DollarSign, User, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_public/courses")({
@@ -236,10 +236,10 @@ function CoursesListing() {
                           {course.teacher?.last_name}
                         </span>
                       </div>
-                      <div className="flex items-center text-sm text-gray-600">
+                      {/* <div className="flex items-center text-sm text-gray-600">
                         <Clock className="h-4 w-4 mr-2" />
                         <span>{course.number_of_hours} hours</span>
-                      </div>
+                      </div> */}
                       <div className="flex items-center text-sm text-gray-600">
                         <Users className="h-4 w-4 mr-2" />
                         <span>

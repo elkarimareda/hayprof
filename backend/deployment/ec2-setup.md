@@ -212,7 +212,15 @@ Create Nginx configuration (see nginx configuration files).
 
 ```bash
 sudo apt install certbot python3-certbot-nginx -y
-sudo certbot --nginx -d yourdomain.com
+
+# Interactive mode (will prompt for email)
+sudo certbot --nginx -d hayprof.com
+
+# Non-interactive mode (recommended for automation)
+sudo certbot --nginx -d hayprof.com --non-interactive --agree-tos --email admin@hayprof.com
+
+# If you have www subdomain as well
+sudo certbot --nginx -d hayprof.com -d www.hayprof.com --non-interactive --agree-tos --email admin@hayprof.com
 ```
 
 ## Step 7: Configure Domain (If applicable)

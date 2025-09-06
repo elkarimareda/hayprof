@@ -196,10 +196,10 @@ function Index() {
                     {course.description}
                   </p>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center text-sm text-gray-500">
+                    {/* <div className="flex items-center text-sm text-gray-500">
                       <Clock className="w-4 h-4 mr-1" />
                       {course.number_of_hours}h
-                    </div>
+                    </div> */}
                     <div className="text-lg font-bold text-primary">
                       ${course.price_per_student}
                     </div>

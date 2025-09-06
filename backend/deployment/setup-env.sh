@@ -7,6 +7,15 @@ set -e
 
 echo "⚙️ Setting up production environment..."
 
+# Check if we're in the right directory (project root with backend and frontend folders)
+if [[ ! -d "backend" ]] || [[ ! -d "frontend" ]]; then
+    echo "❌ Error: This script must be run from the project root directory."
+    echo "   Current directory: $(pwd)"
+    echo "   Expected structure: project-root/backend/ and project-root/frontend/"
+    echo "   Please run: cd /path/to/project-root && ./backend/deployment/setup-env.sh"
+    exit 1
+fi
+
 # Function to generate random password
 generate_password() {
     openssl rand -base64 32 | tr -d "=+/" | cut -c1-25

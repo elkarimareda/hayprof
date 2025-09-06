@@ -19,7 +19,14 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:3000'],
+    'allowed_origins' => [
+        'http://localhost:3000',
+        'http://localhost:5173', // Vite dev server
+        'https://hayprof.com',
+        'https://www.hayprof.com',
+        env('FRONTEND_URL', 'http://localhost:3000'),
+        env('APP_URL', 'http://localhost'),
+    ],
 
     'allowed_origins_patterns' => [],
 
