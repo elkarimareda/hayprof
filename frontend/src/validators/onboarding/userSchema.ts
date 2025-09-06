@@ -8,10 +8,7 @@ const userSchemaBase = z
       .string()
       .min(1, "First name is required")
       .max(100, "First name cannot exceed 100 characters"),
-    email: z
-      .string()
-      .email("Invalid email address")
-      .min(1, "Email is required"),
+    email: z.email("Invalid email address").min(1, "Email is required"),
     password: z
       .string()
       .min(1, "Password is required")
@@ -44,7 +41,7 @@ const teacherSchema = userSchemaBase.extend({
 
 // Function to get the appropriate schema based on user type
 export const userSchema = (type: UserType) => {
-  return type === "student" ? studentSchema : teacherSchema;
+  return type === UserType.student ? studentSchema : teacherSchema;
 };
 
 // Type definitions for better type safety

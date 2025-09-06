@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
@@ -59,10 +60,10 @@ class Teacher extends Model
         return $this->hasMany(Course::class);
     }
 
-    // Many-to-many relationship with languages
+    // Languages relationship through user
     public function languages(): BelongsToMany
     {
-        return $this->belongsToMany(Language::class, 'teacher_languages')
+        return $this->belongsToMany(Language::class, 'user_languages', 'user_id', 'language_id', 'user_id')
             ->withPivot('proficiency_level')
             ->withTimestamps();
     }

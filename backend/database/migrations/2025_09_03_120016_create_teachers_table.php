@@ -11,17 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-
         Schema::create('teachers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->date('birth_date');
-            $table->string('biography');
-            $table->string('first_name');
-            $table->string('last_name');
-            $table->string('country');
-            $table->string('timezone');
-            $table->integer('pricing');
+            $table->string('first_name')->nullable();
+            $table->string('last_name')->nullable();
+            $table->string('country', 2)->nullable();
+            $table->string('timezone')->nullable();
+            $table->integer('pricing')->nullable();
+            $table->string('phone_number')->nullable();
+            $table->text('biography')->nullable();
+            $table->boolean('onboarding_completed')->default(false);
+            $table->boolean('verified_teacher')->default(false);
             $table->timestamps();
         });
     }

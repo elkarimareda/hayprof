@@ -1,16 +1,18 @@
 // Register.tsx
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import api from "@/utils/request";
 import { UserType } from "@/Models/Auth";
 import { Button } from "@/components/ui/button";
 import Field from "@/components/ui/Field";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import {
   userSchema,
+  type TeacherRegistrationInputs,
   type UserRegistrationInputs,
 } from "@/validators/onboarding/userSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "react-i18next";
 import {
   Card,
@@ -21,8 +23,10 @@ import {
 } from "@/components/ui/card";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
+import { useEffect } from "react";
+import { format, subYears } from "date-fns";
 
-export const Route = createFileRoute("/_auth/register")({
+export const Route = createFileRoute("/_public/_auth/register")({
   component: Register,
   validateSearch: (search: Record<string, unknown>): { type: UserType } => {
     return {
@@ -34,6 +38,7 @@ export const Route = createFileRoute("/_auth/register")({
 function Register() {
   const { type } = Route.useSearch();
   const { t } = useTranslation();
+  const navigate = Route.useNavigate();
 
   // Use the conditional type properly
   const form = useForm<UserRegistrationInputs<typeof type>>({
@@ -43,7 +48,7 @@ function Register() {
       email: "",
       password: "",
       password_confirmation: "",
-      birth_date: "",
+      birth_date: format(subYears(new Date(), 18), "yyyy-MM-dd"),
       phone_number: "",
       user_type: type,
       ...(type === UserType.teacher ? { biography: "" } : {}),
@@ -51,10 +56,21 @@ function Register() {
     mode: "onChange",
   });
 
+  const handleTypeChange = (value: string) => {
+    const newType = value as UserType;
+    navigate({
+      to: "/register",
+      search: { type: newType },
+      replace: true,
+    });
+  };
+
   const onSubmit = async (data: UserRegistrationInputs<typeof type>) => {
     try {
       const response = await api.post("/register", data);
       console.log("Registration successful:", response.data);
+      redirect({ to: "/login" });
+      toast.success(t("registration_success"));
     } catch (error: unknown) {
       const axiosError = error as AxiosError<{ message: string }>;
       const errorMessage =
@@ -63,12 +79,24 @@ function Register() {
     }
   };
 
+  useEffect(() => {
+    form.setValue("user_type", type);
+  }, [type, form]);
+
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle>{t("register_title", { context: type })}</CardTitle>
       </CardHeader>
       <CardContent>
+        {/* User Type Tabs */}
+        <Tabs value={type} onValueChange={handleTypeChange} className="mb-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value={UserType.student}>{t("student")}</TabsTrigger>
+            <TabsTrigger value={UserType.teacher}>{t("teacher")}</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <Field
@@ -112,19 +140,20 @@ function Register() {
               name="phone_number"
               error={form.formState.errors.phone_number}
             />
-
             {type === UserType.teacher && (
               <Field
                 control={form.control}
                 label={t("biography")}
                 type="textarea"
                 name="biography"
-                error={form.formState.errors.biography}
+                error={
+                  (
+                    form.formState
+                      .errors as FieldErrors<TeacherRegistrationInputs>
+                  ).biography
+                }
               />
             )}
-
-            <input type="hidden" value={type} {...form.register("user_type")} />
-
             <Button type="submit">{t("register")}</Button>
           </form>
         </Form>
@@ -132,13 +161,7 @@ function Register() {
       <CardFooter>
         <div className="text-sm text-center w-full">
           <p className="mt-2">
-            {t("have_account")}{" "}
-            <a
-              href="/login"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              {t("login")}
-            </a>
+            {t("have_account")} <Link to="/login">{t("login")}</Link>
           </p>
         </div>
       </CardFooter>

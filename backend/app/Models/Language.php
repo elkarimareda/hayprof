@@ -25,15 +25,21 @@ class Language extends Model
     }
 
     // Relationships
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'user_languages')
+            ->withPivot('proficiency_level')
+            ->withTimestamps();
+    }
+
+    // Helper methods for specific user types
     public function teachers(): BelongsToMany
     {
-        return $this->belongsToMany(Teacher::class, 'teacher_languages')
-            ->withTimestamps();
+        return $this->users()->where('user_type', 'teacher');
     }
 
     public function students(): BelongsToMany
     {
-        return $this->belongsToMany(Student::class, 'student_languages')
-            ->withTimestamps();
+        return $this->users()->where('user_type', 'student');
     }
 }

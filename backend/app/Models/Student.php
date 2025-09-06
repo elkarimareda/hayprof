@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Student extends Model
 {
-    protected $fillable = ['user_id', 'birth_date', 'phone_number'];
+    protected $fillable = ['user_id', 'birth_date', 'country', 'timezone'];
 
     protected $casts = [
         'birth_date' => 'date'

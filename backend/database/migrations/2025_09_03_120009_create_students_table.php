@@ -11,12 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('subjects', function (Blueprint $table) {
+        Schema::create('students', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique();
-            $table->string('code', 10)->unique(); // Short code like 'MATH', 'ENG', etc.
-            $table->text('description')->nullable();
-            $table->boolean('is_active')->default(true);
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->date('birth_date');
+            $table->string('country', 2)->nullable();
+            $table->string('timezone')->nullable();
             $table->timestamps();
         });
     }
@@ -26,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('subjects');
+        Schema::dropIfExists('students');
     }
 };

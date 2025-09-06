@@ -9,45 +9,50 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PublicRouteImport } from './routes/_public'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
-import { Route as AuthRouteImport } from './routes/_auth'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as PublicIndexRouteImport } from './routes/_public/index'
+import { Route as PublicTeachersRouteImport } from './routes/_public/teachers'
+import { Route as PublicCoursesRouteImport } from './routes/_public/courses'
+import { Route as PublicAuthRouteImport } from './routes/_public/_auth'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/_app'
-import { Route as AuthRegisterRouteImport } from './routes/_auth/register'
-import { Route as AuthLoginRouteImport } from './routes/_auth/login'
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard/index'
-import { Route as AuthenticatedAppTeachersRouteImport } from './routes/_authenticated/_app/teachers'
+import { Route as PublicAuthRegisterRouteImport } from './routes/_public/_auth/register'
+import { Route as PublicAuthLoginRouteImport } from './routes/_public/_auth/login'
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/_app/profile'
 import { Route as AuthenticatedAppOnboardingRouteImport } from './routes/_authenticated/_app/onboarding'
-import { Route as AuthenticatedAppCoursesRouteImport } from './routes/_authenticated/_app/courses'
 import { Route as AuthenticatedAppCourseRouteImport } from './routes/_authenticated/_app/course'
 
+const PublicRoute = PublicRouteImport.update({
+  id: '/_public',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/_auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
+const PublicIndexRoute = PublicIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicTeachersRoute = PublicTeachersRouteImport.update({
+  id: '/teachers',
+  path: '/teachers',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicCoursesRoute = PublicCoursesRouteImport.update({
+  id: '/courses',
+  path: '/courses',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicAuthRoute = PublicAuthRouteImport.update({
+  id: '/_auth',
+  getParentRoute: () => PublicRoute,
 } as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   id: '/_app',
   getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthRegisterRoute = AuthRegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
-  getParentRoute: () => AuthRoute,
-} as any)
-const AuthLoginRoute = AuthLoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => AuthRoute,
 } as any)
 const AuthenticatedDashboardIndexRoute =
   AuthenticatedDashboardIndexRouteImport.update({
@@ -55,12 +60,16 @@ const AuthenticatedDashboardIndexRoute =
     path: '/dashboard/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedAppTeachersRoute =
-  AuthenticatedAppTeachersRouteImport.update({
-    id: '/teachers',
-    path: '/teachers',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
+const PublicAuthRegisterRoute = PublicAuthRegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => PublicAuthRoute,
+} as any)
+const PublicAuthLoginRoute = PublicAuthLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => PublicAuthRoute,
+} as any)
 const AuthenticatedAppProfileRoute = AuthenticatedAppProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -72,11 +81,6 @@ const AuthenticatedAppOnboardingRoute =
     path: '/onboarding',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppCoursesRoute = AuthenticatedAppCoursesRouteImport.update({
-  id: '/courses',
-  path: '/courses',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
 const AuthenticatedAppCourseRoute = AuthenticatedAppCourseRouteImport.update({
   id: '/course',
   path: '/course',
@@ -84,89 +88,97 @@ const AuthenticatedAppCourseRoute = AuthenticatedAppCourseRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/login': typeof AuthLoginRoute
-  '/register': typeof AuthRegisterRoute
+  '/courses': typeof PublicCoursesRoute
+  '/teachers': typeof PublicTeachersRoute
+  '/': typeof PublicIndexRoute
   '/course': typeof AuthenticatedAppCourseRoute
-  '/courses': typeof AuthenticatedAppCoursesRoute
   '/onboarding': typeof AuthenticatedAppOnboardingRoute
   '/profile': typeof AuthenticatedAppProfileRoute
-  '/teachers': typeof AuthenticatedAppTeachersRoute
+  '/login': typeof PublicAuthLoginRoute
+  '/register': typeof PublicAuthRegisterRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/login': typeof AuthLoginRoute
-  '/register': typeof AuthRegisterRoute
+  '/courses': typeof PublicCoursesRoute
+  '/teachers': typeof PublicTeachersRoute
+  '/': typeof PublicIndexRoute
   '/course': typeof AuthenticatedAppCourseRoute
-  '/courses': typeof AuthenticatedAppCoursesRoute
   '/onboarding': typeof AuthenticatedAppOnboardingRoute
   '/profile': typeof AuthenticatedAppProfileRoute
-  '/teachers': typeof AuthenticatedAppTeachersRoute
+  '/login': typeof PublicAuthLoginRoute
+  '/register': typeof PublicAuthRegisterRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/_auth': typeof AuthRouteWithChildren
   '/_authenticated': typeof AuthenticatedRouteWithChildren
-  '/_auth/login': typeof AuthLoginRoute
-  '/_auth/register': typeof AuthRegisterRoute
+  '/_public': typeof PublicRouteWithChildren
   '/_authenticated/_app': typeof AuthenticatedAppRouteWithChildren
+  '/_public/_auth': typeof PublicAuthRouteWithChildren
+  '/_public/courses': typeof PublicCoursesRoute
+  '/_public/teachers': typeof PublicTeachersRoute
+  '/_public/': typeof PublicIndexRoute
   '/_authenticated/_app/course': typeof AuthenticatedAppCourseRoute
-  '/_authenticated/_app/courses': typeof AuthenticatedAppCoursesRoute
   '/_authenticated/_app/onboarding': typeof AuthenticatedAppOnboardingRoute
   '/_authenticated/_app/profile': typeof AuthenticatedAppProfileRoute
-  '/_authenticated/_app/teachers': typeof AuthenticatedAppTeachersRoute
+  '/_public/_auth/login': typeof PublicAuthLoginRoute
+  '/_public/_auth/register': typeof PublicAuthRegisterRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
-    | '/login'
-    | '/register'
-    | '/course'
     | '/courses'
+    | '/teachers'
+    | '/'
+    | '/course'
     | '/onboarding'
     | '/profile'
-    | '/teachers'
+    | '/login'
+    | '/register'
     | '/dashboard'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
-    | '/login'
-    | '/register'
-    | '/course'
     | '/courses'
+    | '/teachers'
+    | '/'
+    | '/course'
     | '/onboarding'
     | '/profile'
-    | '/teachers'
+    | '/login'
+    | '/register'
     | '/dashboard'
   id:
     | '__root__'
-    | '/'
-    | '/_auth'
     | '/_authenticated'
-    | '/_auth/login'
-    | '/_auth/register'
+    | '/_public'
     | '/_authenticated/_app'
+    | '/_public/_auth'
+    | '/_public/courses'
+    | '/_public/teachers'
+    | '/_public/'
     | '/_authenticated/_app/course'
-    | '/_authenticated/_app/courses'
     | '/_authenticated/_app/onboarding'
     | '/_authenticated/_app/profile'
-    | '/_authenticated/_app/teachers'
+    | '/_public/_auth/login'
+    | '/_public/_auth/register'
     | '/_authenticated/dashboard/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AuthRoute: typeof AuthRouteWithChildren
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  PublicRoute: typeof PublicRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/_public': {
+      id: '/_public'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof PublicRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
@@ -174,19 +186,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_auth': {
-      id: '/_auth'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
+    '/_public/': {
+      id: '/_public/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof PublicIndexRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/teachers': {
+      id: '/_public/teachers'
+      path: '/teachers'
+      fullPath: '/teachers'
+      preLoaderRoute: typeof PublicTeachersRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/courses': {
+      id: '/_public/courses'
+      path: '/courses'
+      fullPath: '/courses'
+      preLoaderRoute: typeof PublicCoursesRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/_auth': {
+      id: '/_public/_auth'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof PublicAuthRouteImport
+      parentRoute: typeof PublicRoute
     }
     '/_authenticated/_app': {
       id: '/_authenticated/_app'
@@ -195,20 +221,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_auth/register': {
-      id: '/_auth/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof AuthRegisterRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/login': {
-      id: '/_auth/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof AuthLoginRouteImport
-      parentRoute: typeof AuthRoute
-    }
     '/_authenticated/dashboard/': {
       id: '/_authenticated/dashboard/'
       path: '/dashboard'
@@ -216,12 +228,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/_app/teachers': {
-      id: '/_authenticated/_app/teachers'
-      path: '/teachers'
-      fullPath: '/teachers'
-      preLoaderRoute: typeof AuthenticatedAppTeachersRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+    '/_public/_auth/register': {
+      id: '/_public/_auth/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof PublicAuthRegisterRouteImport
+      parentRoute: typeof PublicAuthRoute
+    }
+    '/_public/_auth/login': {
+      id: '/_public/_auth/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof PublicAuthLoginRouteImport
+      parentRoute: typeof PublicAuthRoute
     }
     '/_authenticated/_app/profile': {
       id: '/_authenticated/_app/profile'
@@ -237,13 +256,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppOnboardingRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/_app/courses': {
-      id: '/_authenticated/_app/courses'
-      path: '/courses'
-      fullPath: '/courses'
-      preLoaderRoute: typeof AuthenticatedAppCoursesRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
     '/_authenticated/_app/course': {
       id: '/_authenticated/_app/course'
       path: '/course'
@@ -254,32 +266,16 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AuthRouteChildren {
-  AuthLoginRoute: typeof AuthLoginRoute
-  AuthRegisterRoute: typeof AuthRegisterRoute
-}
-
-const AuthRouteChildren: AuthRouteChildren = {
-  AuthLoginRoute: AuthLoginRoute,
-  AuthRegisterRoute: AuthRegisterRoute,
-}
-
-const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
-
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppCourseRoute: typeof AuthenticatedAppCourseRoute
-  AuthenticatedAppCoursesRoute: typeof AuthenticatedAppCoursesRoute
   AuthenticatedAppOnboardingRoute: typeof AuthenticatedAppOnboardingRoute
   AuthenticatedAppProfileRoute: typeof AuthenticatedAppProfileRoute
-  AuthenticatedAppTeachersRoute: typeof AuthenticatedAppTeachersRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppCourseRoute: AuthenticatedAppCourseRoute,
-  AuthenticatedAppCoursesRoute: AuthenticatedAppCoursesRoute,
   AuthenticatedAppOnboardingRoute: AuthenticatedAppOnboardingRoute,
   AuthenticatedAppProfileRoute: AuthenticatedAppProfileRoute,
-  AuthenticatedAppTeachersRoute: AuthenticatedAppTeachersRoute,
 }
 
 const AuthenticatedAppRouteWithChildren =
@@ -299,10 +295,40 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface PublicAuthRouteChildren {
+  PublicAuthLoginRoute: typeof PublicAuthLoginRoute
+  PublicAuthRegisterRoute: typeof PublicAuthRegisterRoute
+}
+
+const PublicAuthRouteChildren: PublicAuthRouteChildren = {
+  PublicAuthLoginRoute: PublicAuthLoginRoute,
+  PublicAuthRegisterRoute: PublicAuthRegisterRoute,
+}
+
+const PublicAuthRouteWithChildren = PublicAuthRoute._addFileChildren(
+  PublicAuthRouteChildren,
+)
+
+interface PublicRouteChildren {
+  PublicAuthRoute: typeof PublicAuthRouteWithChildren
+  PublicCoursesRoute: typeof PublicCoursesRoute
+  PublicTeachersRoute: typeof PublicTeachersRoute
+  PublicIndexRoute: typeof PublicIndexRoute
+}
+
+const PublicRouteChildren: PublicRouteChildren = {
+  PublicAuthRoute: PublicAuthRouteWithChildren,
+  PublicCoursesRoute: PublicCoursesRoute,
+  PublicTeachersRoute: PublicTeachersRoute,
+  PublicIndexRoute: PublicIndexRoute,
+}
+
+const PublicRouteWithChildren =
+  PublicRoute._addFileChildren(PublicRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AuthRoute: AuthRouteWithChildren,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  PublicRoute: PublicRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

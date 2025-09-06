@@ -9,14 +9,13 @@ class CourseSchedule extends Model
 {
   protected $fillable = [
     'course_id',
-    'day_of_week',
-    'start_time',
-    'end_time',
+    'datetime_scheduled',
+    'time_of_session',
   ];
 
   protected $casts = [
-    'start_time' => 'datetime:H:i',
-    'end_time' => 'datetime:H:i',
+    'datetime_scheduled' => 'datetime',
+    'time_of_session' => 'integer',
   ];
 
   public function course(): BelongsTo

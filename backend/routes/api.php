@@ -6,6 +6,7 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\TeacherController;
+use App\Http\Controllers\StudentController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -18,6 +19,7 @@ Route::middleware('api')->group(function () {
   Route::post('/register', [AuthController::class, 'register']);
   Route::post('/login', [AuthController::class, 'login']);
   Route::post('/upload', [MediaController::class, 'upload']);
+  Route::get('/media/config', [MediaController::class, 'config']);
 
   // Reference data endpoints (public)
   Route::get('/subjects', [SubjectController::class, 'index']);
@@ -31,11 +33,17 @@ Route::middleware('api')->group(function () {
   // Public teacher browsing
   Route::get('/teachers', [TeacherController::class, 'index']);
 
+  // Public student browsing
+  Route::get('/students', [StudentController::class, 'index']);
+
   Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
+    Route::post('/teacher/onboarding', [AuthController::class, 'completeTeacherOnboarding']);
+
     Route::get('/teacher/profile/{id}', [TeacherController::class, 'profile']);
+    Route::get('/student/profile/{id}', [StudentController::class, 'profile']);
     Route::get('/courses', [CourseController::class, 'index']);
     Route::post('/courses', [CourseController::class, 'store']);
 

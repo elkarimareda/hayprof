@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Clock, Users, DollarSign, User, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/_app/courses")({
+export const Route = createFileRoute("/_public/courses")({
   component: CoursesListing,
 });
 

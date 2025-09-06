@@ -16,7 +16,7 @@ import { loginSchema, type LoginInputs } from "@/validators/loginSchema";
 import Field from "@/components/ui/Field";
 import { Form } from "@/components/ui/form";
 
-export const Route = createFileRoute("/_auth/login")({
+export const Route = createFileRoute("/_public/_auth/login")({
   component: Login,
 });
 

@@ -3,9 +3,8 @@ import type { CourseInputs } from "@/validators/courseSchema";
 
 export interface CourseSchedule {
   id: number;
-  day_of_week: string;
-  start_time: string;
-  end_time: string;
+  datetime_scheduled: string;
+  time_of_session: number; // duration in minutes
 }
 
 export interface Course {
@@ -20,7 +19,8 @@ export interface Course {
   description: string;
   thumbnail_url?: string;
   price_per_student: number;
-  number_of_hours: number;
+  count_session: number;
+  duration_session: number;
   min_students: number;
   max_students: number;
   schedules: CourseSchedule[];
@@ -62,16 +62,26 @@ export const createCourse = async (
   formData.append("description", data.description);
   formData.append("thumbnail", data.thumbnail);
   formData.append("price_per_student", data.price_per_student.toString());
-  formData.append("number_of_hours", data.number_of_hours.toString());
+  formData.append("count_session", data.count_session.toString());
+  formData.append("duration_session", data.duration_session.toString());
   formData.append("min_students", data.min_students.toString());
   formData.append("max_students", data.max_students.toString());
 
   // Append schedule data
-  data.schedule.forEach((schedule, index) => {
-    formData.append(`schedule[${index}][day_of_week]`, schedule.day_of_week);
-    formData.append(`schedule[${index}][start_time]`, schedule.start_time);
-    formData.append(`schedule[${index}][end_time]`, schedule.end_time);
+  console.log("Schedule data before sending:", data.schedule);
+  console.log("Count session:", data.count_session);
+  console.log("Schedule length:", data.schedule.length);
+  
+  // Filter out empty schedules and reindex
+  const validSchedules = data.schedule.filter(schedule => schedule.date && schedule.date.trim() !== '');
+  console.log("Valid schedules:", validSchedules);
+  
+  validSchedules.forEach((schedule, index) => {
+    formData.append(`schedule[${index}][date]`, schedule.date);
+    console.log(`Adding schedule[${index}][date]:`, schedule.date);
   });
+
+  console.log("Form Data Entries:", Array.from(formData.entries()));
 
   const response = await api.post<CourseResponse>("/courses", formData, {
     headers: {

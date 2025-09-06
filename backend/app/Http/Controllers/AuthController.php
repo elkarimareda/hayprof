@@ -151,7 +151,8 @@ class AuthController extends Controller
     // Add onboarding status for teachers
     if ($user->isTeacher()) {
       $response['onboarding_completed'] = $user->profile->onboarding_completed ?? false;
-      $response['photo_url'] = $user->profile->photo_url ?? null;
+      $profilePhoto = $user->profile->profilePhoto();
+      $response['photo_url'] = $profilePhoto ? $profilePhoto->url() : null;
     }
 
     return response()->json($response);
@@ -225,27 +226,30 @@ class AuthController extends Controller
       'birth_date' => 'required|date|before:today',
       'timezone' => 'required|string|max:255',
       'pricing' => 'required|integer|min:1',
-      'photo' => 'required|integer|exists:media,id',
-      'video' => 'required|integer|exists:media,id',
-      'certifications' => 'required|array|min:1',
-      'certifications.*.subject' => 'required|string|max:255',
-      'certifications.*.certificate' => 'required|string|max:255',
+      'photo' => 'required|integer|exists:medias,id',
+      'video' => 'required|integer|exists:medias,id',
+      'certifications' => 'nullable|array',
+      'certifications.*.subject' => 'required_with:certifications|string|max:255',
+      'certifications.*.certificate' => 'required_with:certifications|string|max:255',
       'certifications.*.description' => 'nullable|string',
       'certifications.*.issue_by' => 'nullable|string|max:255',
-      'certifications.*.year_of_study_start' => 'required|string|size:4',
-      'certifications.*.year_of_study_end' => 'required|string|size:4',
-      'educations' => 'required|array|min:1',
-      'educations.*.university' => 'required|string|max:255',
-      'educations.*.degree' => 'required|string|max:255',
-      'educations.*.degree_type' => 'required|string|max:255',
+      'certifications.*.year_of_study_start' => 'required_with:certifications|string|size:4',
+      'certifications.*.year_of_study_end' => 'required_with:certifications|string|size:4',
+      'educations' => 'nullable|array',
+      'educations.*.university' => 'required_with:educations|string|max:255',
+      'educations.*.degree' => 'required_with:educations|string|max:255',
+      'educations.*.degree_type' => 'required_with:educations|string|max:255',
       'educations.*.specialization' => 'nullable|string|max:255',
-      'educations.*.year_of_study_start' => 'required|string|size:4',
-      'educations.*.year_of_study_end' => 'required|string|size:4',
+      'educations.*.year_of_study_start' => 'required_with:educations|string|size:4',
+      'educations.*.year_of_study_end' => 'required_with:educations|string|size:4',
       'description' => 'required|array',
       'description.yourself' => 'required|string',
       'description.experience' => 'required|string',
       'description.motivation' => 'required|string',
       'description.headline' => 'required|string',
+      'languages' => 'required|array|min:1',
+      'languages.*.language_id' => 'required|integer|exists:languages,id',
+      'languages.*.proficiency_level' => 'required|in:native,beginner,elementary,intermediate,upper_intermediate,advanced,proficient',
       'availabilities' => 'required|array|min:1',
       'availabilities.*' => 'array',
       'availabilities.*.*.day_of_week' => 'required|string|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
@@ -274,14 +278,21 @@ class AuthController extends Controller
         'pricing' => $validated['pricing'],
       ]);
 
-      // Sync certifications
-      $teacher->syncCertifications($validated['certifications']);
+      // Sync certifications (only if provided)
+      if (!empty($validated['certifications'])) {
+        $teacher->syncCertifications($validated['certifications']);
+      }
 
-      // Sync educations
-      $teacher->syncEducations($validated['educations']);
+      // Sync educations (only if provided)
+      if (!empty($validated['educations'])) {
+        $teacher->syncEducations($validated['educations']);
+      }
 
       // Update description
       $teacher->upsertDescription($validated['description']);
+
+      // Sync languages
+      $teacher->syncLanguages($validated['languages']);
 
       // Sync availabilities
       $teacher->syncAvailabilities($validated['availabilities']);
@@ -353,7 +364,7 @@ class AuthController extends Controller
           'email' => $user->email,
           'phone_number' => $user->phone_number,
           'user_type' => $user->user_type,
-          'profile' => $user->fresh()->profile->load(['certifications', 'educations', 'description', 'availabilities']),
+          'profile' => $user->fresh()->profile->load(['certifications', 'educations', 'description', 'availabilities', 'languages']),
           'onboarding_completed' => true,
         ],
       ], 200);
@@ -374,7 +385,8 @@ class AuthController extends Controller
       'availabilities',
       'medias',
       'courses.subject',
-      'courses.schedules'
+      'courses.schedules',
+      'languages'
     ])->find($teacherId);
 
     if (!$teacher) {
@@ -446,7 +458,6 @@ class AuthController extends Controller
 
         'courses' => $teacher->courses->map(function ($course) {
           $thumbnail = $course->medias()->where('media_purpose', 'course_thumbnail')->first();
-          return dump($thumbnail);
           return [
             'id' => $course->id,
             'title' => $course->title,
@@ -475,6 +486,17 @@ class AuthController extends Controller
             'created_at' => $course->created_at,
           ];
         }),
+        'languages' => $teacher->languages->map(function ($language) {
+          return [
+            'id' => $language->id,
+            'name' => $language->name,
+            'code' => $language->code,
+            'native_name' => $language->native_name,
+            'pivot' => [
+              'proficiency_level' => $language->pivot->proficiency_level,
+            ],
+          ];
+        }),
 
         'availabilities' => $teacher->availabilities->groupBy('day_of_week')->map(function ($daySlots, $day) {
           return $daySlots->map(function ($slot) {
@@ -486,6 +508,8 @@ class AuthController extends Controller
             ];
           })->values();
         }),
+
+
       ]
     ];
 

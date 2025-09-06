@@ -11,11 +11,22 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Create subjects table
+        Schema::create('subjects', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('code')->unique();
+            $table->text('description')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
+        // Create languages table
         Schema::create('languages', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique();
-            $table->string('code', 5)->unique(); // ISO 639-1 or 639-2 codes like 'en', 'fr', 'es'
-            $table->string('native_name')->nullable(); // Native language name
+            $table->string('name');
+            $table->string('code', 10)->unique();
+            $table->string('native_name')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
@@ -27,5 +38,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('languages');
+        Schema::dropIfExists('subjects');
     }
 };

@@ -1,15 +1,8 @@
 import { z } from "zod";
 
-// Helper function to calculate hours from time slots
-const calculateTotalHours = (
-  schedule: Array<{ start_time: string; end_time: string }>
-) => {
-  return schedule.reduce((total, slot) => {
-    const startTime = new Date(`2000-01-01T${slot.start_time}:00`);
-    const endTime = new Date(`2000-01-01T${slot.end_time}:00`);
-    const hours = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-    return total + hours;
-  }, 0);
+// Helper function to calculate total sessions from schedule
+const calculateTotalSessions = (schedule: Array<{ date: string }>) => {
+  return schedule.filter((slot) => slot.date).length;
 };
 
 export const courseSchema = z
@@ -49,11 +42,21 @@ export const courseSchema = z
       .number({ error: "Price must be a number" })
       .positive("Price must be positive")
       .min(1, "Price should be at least 1"),
-    number_of_hours: z.coerce
-      .number({ error: "Number of hours must be a number" })
+    count_session: z.coerce
+      .number({ error: "Number of sessions must be a number" })
+      .int("Must be a whole number")
       .positive("Must be positive")
-      .min(0.5, "At least 0.5 hours required")
-      .multipleOf(0.5, "Hours must be in 0.5 hour increments"),
+      .min(1, "At least 1 session required")
+      .max(20, "At most 20 sessions allowed"),
+    duration_session: z.coerce
+      .number({ error: "Session duration must be a number (in hours)" })
+      .positive("Duration must be positive")
+      .min(0.5, "Session must be at least 0.5 hours (30 minutes)")
+      .max(8, "Session cannot exceed 8 hours")
+      .multipleOf(
+        0.5,
+        "Duration must be in 0.5 hour increments (e.g., 1, 1.5, 2)"
+      ),
     min_students: z.coerce
       .number({ error: "Minimum students must be a number" })
       .int("Must be a whole number")
@@ -63,20 +66,11 @@ export const courseSchema = z
       .number({ error: "Maximum students must be a number" })
       .int("Must be a whole number")
       .positive("Must be positive"),
+    course_date: z.string().min(1, "Course date is required"),
     schedule: z
       .array(
         z.object({
-          day_of_week: z.enum([
-            "monday",
-            "tuesday",
-            "wednesday",
-            "thursday",
-            "friday",
-            "saturday",
-            "sunday",
-          ]),
-          start_time: z.string().min(1, "Start time is required"),
-          end_time: z.string().min(1, "End time is required"),
+          date: z.string().min(1, "Date and time is required"),
         })
       )
       .min(1, "At least one schedule slot is required"),
@@ -88,11 +82,11 @@ export const courseSchema = z
   })
   .refine(
     (data) => {
-      const totalScheduledHours = calculateTotalHours(data.schedule);
-      return totalScheduledHours >= data.number_of_hours;
+      const totalScheduledSessions = calculateTotalSessions(data.schedule);
+      return totalScheduledSessions >= data.count_session;
     },
     {
-      message: "Scheduled time slots must meet minimum hour requirements",
+      message: "Number of scheduled sessions must match the count of sessions",
       path: ["schedule"],
     }
   );

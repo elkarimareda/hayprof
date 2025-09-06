@@ -1,35 +1,29 @@
 import {
-  teacherAboutSchema,
-  type TeacherAboutRegistrationInputs,
+  teacherLanguagesSchema,
+  type TeacherLanguagesRegistrationInputs,
 } from "@/validators/onboarding/teacherSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useFieldArray } from "react-hook-form";
-import { useEffect, useState, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import Field from "@/components/ui/Field";
+import { useFieldArray, useForm } from "react-hook-form";
 import { Form } from "@/components/ui/form";
-import countries from "@/data/countries.json";
-import axios from "axios";
-import { format, subYears } from "date-fns";
+import Field from "@/components/ui/Field";
+import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+import { useEffect, useState, useMemo } from "react";
 import { getLanguages, type Language } from "@/apis/reference";
 import { toast } from "sonner";
-import { useTranslation } from "react-i18next";
 
 interface Props {
-  onNext: (data: TeacherAboutRegistrationInputs) => void;
+  onNext: (data: TeacherLanguagesRegistrationInputs) => void;
+  onPrevious: () => void;
 }
 
-function FormAbout({ onNext }: Props) {
+function FormLanguages({ onPrevious, onNext }: Props) {
   const { t } = useTranslation();
   const [languages, setLanguages] = useState<Language[]>([]);
 
   const form = useForm({
-    resolver: zodResolver(teacherAboutSchema),
+    resolver: zodResolver(teacherLanguagesSchema),
     defaultValues: {
-      firstname: "",
-      lastname: "",
-      country: "",
-      birth_date: format(subYears(new Date(), 18), "yyyy-MM-dd"),
       languages: [
         {
           language_id: 0,
@@ -51,7 +45,8 @@ function FormAbout({ onNext }: Props) {
       try {
         const response = await getLanguages({ is_active: true });
         setLanguages(response.languages);
-      } catch {
+      } catch (error) {
+        console.error("Failed to load languages:", error);
         toast.error(t("errors.failed_to_load_languages"));
       }
     };
@@ -71,7 +66,6 @@ function FormAbout({ onNext }: Props) {
   // Proficiency level options - using same structure as course proficiency
   const proficiencyOptions = useMemo(
     () => [
-      { label: t("course.proficiency.native"), value: "native" },
       { label: t("course.proficiency.beginner"), value: "beginner" },
       { label: t("course.proficiency.elementary"), value: "elementary" },
       { label: t("course.proficiency.intermediate"), value: "intermediate" },
@@ -85,41 +79,8 @@ function FormAbout({ onNext }: Props) {
     [t]
   );
 
-  // Detect user's country using ipapi.co
-  useEffect(() => {
-    const detectCountry = async () => {
-      try {
-        const response = await axios.get(
-          "https://ipapi.co/json?access_key=f0225e9aa8d65a03d8edfcf5578ee502"
-        );
-        if (response.data.country_code) {
-          console.log("Detected country:", response.data.country_code);
-          form.setValue("country", response.data.country_code);
-          localStorage.setItem("hayprof_country", response.data.country_code);
-        }
-      } catch (error) {
-        console.log("Failed to detect country:", error);
-        // Fallback to browser language detection
-        if (typeof window !== "undefined" && window.navigator.language) {
-          const lang = window.navigator.language;
-          const code = lang.split("-")[1];
-          if (code) {
-            form.setValue("country", code.toUpperCase());
-          }
-        }
-      }
-    };
-
-    const savedCountry = localStorage.getItem("hayprof_country");
-    if (savedCountry) {
-      form.setValue("country", savedCountry);
-    } else {
-      detectCountry();
-    }
-  }, [form]);
-
-  const onSubmit = async (data: TeacherAboutRegistrationInputs) => {
-    console.log("Form submitted with data:", data);
+  const onSubmit = async (data: TeacherLanguagesRegistrationInputs) => {
+    console.log("Languages form submitted with data:", data);
     onNext(data);
   };
 
@@ -133,39 +94,6 @@ function FormAbout({ onNext }: Props) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="space-y-4">
-          <Field
-            control={form.control}
-            name="firstname"
-            label={t("first_name")}
-            error={form.formState.errors.firstname}
-          />
-          <Field
-            control={form.control}
-            name="lastname"
-            label={t("last_name")}
-            error={form.formState.errors.lastname}
-          />
-          <Field
-            control={form.control}
-            name="birth_date"
-            label={t("birth_date")}
-            type="date"
-            error={form.formState.errors.birth_date}
-          />
-          <Field
-            control={form.control}
-            name="country"
-            type="combobox"
-            options={countries.map((country) => ({
-              value: country.alpha2,
-              label: country.name,
-            }))}
-            label={t("country")}
-            error={form.formState.errors.country}
-          />
-        </div>
-
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">
             {t("languages.spoken_languages")}
@@ -228,6 +156,9 @@ function FormAbout({ onNext }: Props) {
         </div>
 
         <div className="flex justify-end gap-4 mt-6">
+          <Button variant="outline" onClick={onPrevious}>
+            {t("previous")}
+          </Button>
           <Button type="submit" disabled={!form.formState.isValid}>
             {t("next")}
           </Button>
@@ -237,4 +168,4 @@ function FormAbout({ onNext }: Props) {
   );
 }
 
-export default FormAbout;
+export default FormLanguages;

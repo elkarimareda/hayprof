@@ -9,7 +9,7 @@ class TeacherController extends Controller
 {
   public function index(Request $request)
   {
-    $query = Teacher::with(['user', 'certifications', 'medias'])
+    $query = Teacher::with(['user', 'certifications', 'languages', 'medias'])
       ->where('onboarding_completed', true);
 
     // Filter by subject if provided
@@ -45,6 +45,14 @@ class TeacherController extends Controller
             'certificate' => $cert->certificate,
           ];
         }),
+        'languages' => $teacher->languages->map(function ($language) {
+          return [
+            'id' => $language->id,
+            'name' => $language->name,
+            'code' => $language->code,
+            'proficiency_level' => $language->pivot->proficiency_level,
+          ];
+        }),
         'courses_count' => $teacher->courses()->where('is_validated', true)->count(),
         'subjects' => $teacher->courses()
           ->where('is_validated', true)
@@ -70,6 +78,7 @@ class TeacherController extends Controller
       'educations',
       'description',
       'availabilities',
+      'languages',
       'medias',
       'courses.subject',
       'courses.schedules',
@@ -143,6 +152,16 @@ class TeacherController extends Controller
           'headline' => $teacher->description->headline,
         ] : null,
 
+        'languages' => $teacher->languages->map(function ($language) {
+          return [
+            'id' => $language->id,
+            'name' => $language->name,
+            'code' => $language->code,
+            'native_name' => $language->native_name,
+            'proficiency_level' => $language->pivot->proficiency_level,
+          ];
+        }),
+
         'courses' => $teacher->courses->map(function ($course) {
           return [
             'id' => $course->id,
@@ -187,5 +206,24 @@ class TeacherController extends Controller
     ];
 
     return response()->json($response);
+  }
+
+  public function getAllLanguages()
+  {
+    $languages = \App\Models\Language::where('is_active', true)
+      ->orderBy('name')
+      ->get()
+      ->map(function ($language) {
+        return [
+          'id' => $language->id,
+          'name' => $language->name,
+          'code' => $language->code,
+          'native_name' => $language->native_name,
+        ];
+      });
+
+    return response()->json([
+      'languages' => $languages
+    ]);
   }
 }

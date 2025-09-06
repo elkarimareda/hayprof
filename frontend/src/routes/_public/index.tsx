@@ -17,7 +17,7 @@ import { useState, useEffect } from "react";
 import { getValidatedCourses, type Course } from "@/apis/courses";
 import { getSubjects, type Subject } from "@/apis/reference";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_public/")({
   component: Index,
 });
 
@@ -252,7 +252,7 @@ function Index() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Why Choose Sofluent?
+              Why Choose HayProf?
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
               Experience the future of language learning with our innovative

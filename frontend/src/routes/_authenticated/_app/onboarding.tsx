@@ -20,7 +20,7 @@ import type {
   TeacherPricingRegistrationInputs,
   TeacherVideoRegistrationInputs,
 } from "@/validators/onboarding/teacherSchema";
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import type { AxiosError } from "axios";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -64,7 +64,6 @@ function Onboarding() {
   const { t } = useTranslation();
   const [step, setStep] = useState<number>(OnboardingStep.ABOUT);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const navigate = useNavigate();
 
   const handleNext = async (
     data?:
@@ -137,15 +136,10 @@ function Onboarding() {
         // ... your API calls to save data ...
 
         // Mark onboarding as completed
-        const response = await api.post(
-          "/complete-teacher-onboarding",
-          finalData
-        );
+        const response = await api.post("/teacher/onboarding", finalData);
         localStorage.removeItem("teacher_data");
         toast.success(response.data.message);
-
-        // Redirect to profile
-        navigate({ to: "/profile" });
+        setStep(step + 1);
       } catch (error) {
         toast.error("Error completing onboarding:" + error);
       }
@@ -159,7 +153,7 @@ function Onboarding() {
       );
     }
 
-    if (step < OnboardingStep.FINAL) {
+    if (step < OnboardingStep.PRICING) {
       setStep(step + 1);
     }
   };

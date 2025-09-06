@@ -27,10 +27,13 @@ COPY . .
 RUN if [ -f "composer.json" ]; then \
   composer install --no-scripts --no-autoloader; \
   composer dump-autoload --optimize; \
-  php artisan optimize:clear; \
-  php artisan migrate; \
   fi
 
 EXPOSE 8000
 
+# Create an entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]

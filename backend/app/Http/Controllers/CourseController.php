@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
-use App\Models\Media;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class CourseController extends Controller
 {
@@ -18,13 +18,12 @@ class CourseController extends Controller
       'description' => 'required|string|max:500',
       'thumbnail' => 'required|file|image|max:5120', // 5MB max
       'price_per_student' => 'required|numeric|min:1',
-      'number_of_hours' => 'required|numeric|min:0.5',
+      'count_session' => 'required|integer|min:1|max:20',
+      'duration_session' => 'required|numeric|min:0.5|max:8',
       'min_students' => 'required|integer|min:1',
       'max_students' => 'required|integer|min:1',
       'schedule' => 'required|array|min:1',
-      'schedule.*.day_of_week' => 'required|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
-      'schedule.*.start_time' => 'required|date_format:H:i',
-      'schedule.*.end_time' => 'required|date_format:H:i|after:schedule.*.start_time',
+      'schedule.*.date' => 'required|date_format:Y-m-d\\TH:i',
     ]);
 
     // Validate max_students >= min_students
@@ -36,6 +35,44 @@ class CourseController extends Controller
         ]
       ], 422);
     }
+
+    // Validate that schedule count matches count_session
+    // Filter out empty schedule slots
+    $validSchedules = array_filter($validated['schedule'], function($schedule) {
+      return !empty($schedule['date']) && trim($schedule['date']) !== '';
+    });
+    
+    $scheduleCount = count($validSchedules);
+    $sessionCount = (int) $validated['count_session'];
+    
+    if ($scheduleCount !== $sessionCount) {
+      Log::error('Schedule validation failed', [
+        'schedule_count' => $scheduleCount,
+        'schedule_count_type' => gettype($scheduleCount),
+        'count_session' => $sessionCount,
+        'count_session_type' => gettype($sessionCount),
+        'count_session_original' => $validated['count_session'],
+        'total_schedule_slots' => count($validated['schedule']),
+        'valid_schedule_slots' => $scheduleCount,
+        'schedule_data' => $validated['schedule']
+      ]);
+      
+      return response()->json([
+        'message' => "Number of valid schedule slots ($scheduleCount) must match the session count ($sessionCount)",
+        'errors' => [
+          'schedule' => ["Number of valid schedule slots ($scheduleCount) must match the session count ($sessionCount)"]
+        ],
+        'debug' => [
+          'schedule_count' => $scheduleCount,
+          'session_count' => $sessionCount,
+          'schedule_count_type' => gettype($scheduleCount),
+          'session_count_type' => gettype($sessionCount)
+        ]
+      ], 422);
+    }
+    
+    // Update validated schedule to only include valid schedules
+    $validated['schedule'] = array_values($validSchedules);
 
     // Get the authenticated teacher
     $teacher = Auth::user()->teacher;
@@ -50,7 +87,8 @@ class CourseController extends Controller
       'description' => $validated['description'],
       'proficiency_level' => $validated['proficiency_level'],
       'price_per_student' => $validated['price_per_student'],
-      'number_of_hours' => $validated['number_of_hours'],
+      'count_session' => $validated['count_session'],
+      'duration_session' => $validated['duration_session'],
       'min_students' => $validated['min_students'],
       'max_students' => $validated['max_students'],
       'is_validated' => false, // Requires validation by default
@@ -73,7 +111,7 @@ class CourseController extends Controller
     }
 
     // Create course schedules
-    $course->syncSchedules($validated['schedule']);
+    $course->syncSchedules($validated['schedule'], $validated['duration_session']);
 
     // Load relationships for response
     $course->load(['subject', 'schedules']);
@@ -88,7 +126,8 @@ class CourseController extends Controller
         'description' => $course->description,
         'thumbnail' => $course->thumbnail,
         'price_per_student' => $course->price_per_student,
-        'number_of_hours' => $course->number_of_hours,
+        'count_session' => $course->count_session,
+        'duration_session' => $course->duration_session,
         'min_students' => $course->min_students,
         'max_students' => $course->max_students,
         'schedules' => $course->schedules,
@@ -122,7 +161,8 @@ class CourseController extends Controller
           'description' => $course->description,
           'thumbnail' => $course->thumbnail,
           'price_per_student' => $course->price_per_student,
-          'number_of_hours' => $course->number_of_hours,
+          'count_session' => $course->count_session,
+          'duration_session' => $course->duration_session,
           'min_students' => $course->min_students,
           'max_students' => $course->max_students,
           'schedules' => $course->schedules,
@@ -152,7 +192,8 @@ class CourseController extends Controller
           'description' => $course->description,
           'thumbnail' => $course->thumbnail,
           'price_per_student' => $course->price_per_student,
-          'number_of_hours' => $course->number_of_hours,
+          'count_session' => $course->count_session,
+          'duration_session' => $course->duration_session,
           'min_students' => $course->min_students,
           'max_students' => $course->max_students,
           'schedules' => $course->schedules,
@@ -230,7 +271,8 @@ class CourseController extends Controller
         'description' => $course->description,
         'thumbnail_url' => $course->thumbnail_url,
         'price_per_student' => $course->price_per_student,
-        'number_of_hours' => $course->number_of_hours,
+        'count_session' => $course->count_session,
+        'duration_session' => $course->duration_session,
         'min_students' => $course->min_students,
         'max_students' => $course->max_students,
         'teacher' => [

@@ -51,7 +51,7 @@ class CleanExpiredMedia extends Command
 
         // 2. Delete orphaned files that exist in storage but not in database
         $orphanedCount = 0;
-        $allFiles = Storage::allFiles('media'); // Assuming media files are stored in 'media' directory
+        $allFiles = Storage::allFiles('medias'); // Assuming media files are stored in 'medias' directory
 
         // Get all file paths from database
         $dbFilePaths = Media::whereNotNull('file_path')->pluck('file_path')->toArray();

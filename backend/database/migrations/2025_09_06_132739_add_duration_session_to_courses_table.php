@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('teachers', function (Blueprint $table) {
-            $table->boolean('verified_teacher')->default(false)->after('onboarding_completed');
+        Schema::table('courses', function (Blueprint $table) {
+            $table->decimal('duration_session', 3, 1)->after('count_session')->default(1.5);
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('teachers', function (Blueprint $table) {
-            $table->dropColumn('verified_teacher');
+        Schema::table('courses', function (Blueprint $table) {
+            $table->dropColumn('duration_session');
         });
     }
 };

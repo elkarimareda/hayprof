@@ -33,9 +33,6 @@ export default function Combobox({
   className,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [selectedValue, setSelectedValue] = useState<string | null>(
-    value != null ? String(value).toLowerCase() : null
-  );
   const { t } = useTranslation();
 
   return (
@@ -47,8 +44,10 @@ export default function Combobox({
           aria-expanded={open}
           className={cn("justify-between", className)}
         >
-          {selectedValue
-            ? options.find((option) => option.value === selectedValue)?.label
+          {value
+            ? options.find(
+                (option) => option.value === String(value).toLowerCase()
+              )?.label
             : (placeholder ?? t("select_option"))}
           <ChevronsUpDown className="opacity-50" />
         </Button>
@@ -75,9 +74,7 @@ export default function Combobox({
                   key={option.value}
                   value={option.value}
                   onSelect={(currentValue) => {
-                    const newValue =
-                      currentValue === selectedValue ? "" : currentValue;
-                    setSelectedValue(newValue);
+                    const newValue = currentValue === value ? "" : currentValue;
                     onChange?.(newValue);
                     setOpen(false);
                   }}
@@ -86,9 +83,7 @@ export default function Combobox({
                   <Check
                     className={cn(
                       "ml-auto",
-                      selectedValue === option.value
-                        ? "opacity-100"
-                        : "opacity-0"
+                      value === option.value ? "opacity-100" : "opacity-0"
                     )}
                   />
                 </CommandItem>

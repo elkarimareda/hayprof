@@ -5,7 +5,7 @@ services:
     ports:
       - "3306:3306"
     environment:
-      MYSQL_DATABASE: laravel
+      MYSQL_DATABASE: hayprof
       MYSQL_ROOT_PASSWORD: root
     volumes:
       - mysql_data:/var/lib/mysql
@@ -16,7 +16,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: laravel-backend
+    container_name: hayprof-backend
     ports:
       - "8000:8000"
     volumes:
@@ -30,7 +30,7 @@ services:
     environment:
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_DATABASE: laravel
+      DB_DATABASE: hayprof
       DB_USERNAME: root
       DB_PASSWORD: root
 

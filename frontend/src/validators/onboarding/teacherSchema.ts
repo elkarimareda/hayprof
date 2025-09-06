@@ -9,26 +9,39 @@ export const teacherAboutSchema = z.object({
     .string()
     .min(1, "Last name is required")
     .max(100, "Last name cannot exceed 100 characters"),
-  email: z.email("Invalid email address").min(1, "Email is required"),
   country: z.string(),
   birth_date: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Invalid date format",
   }),
-  phone_number: z
-    .string()
-    .min(1, "Phone number is required")
-    .max(20, "Phone number cannot exceed 20 characters"),
+  languages: z
+    .array(
+      z.object({
+        language_id: z.coerce.number().min(1, "Language is required"),
+        proficiency_level: z.enum([
+          "native",
+          "beginner",
+          "elementary",
+          "intermediate",
+          "upper_intermediate",
+          "advanced",
+          "proficient",
+        ]),
+      })
+    )
+    .min(1, "At least one language is required"),
 });
 
 export type TeacherAboutRegistrationInputs = z.infer<typeof teacherAboutSchema>;
 
 export const teacherPhotoSchema = z.object({
   photo: z
-    .instanceof(FileList)
-    .refine((files) => files.length > 0, "Photo is required")
+    .array(z.instanceof(File))
+    .min(1, "Photo is required")
     .refine(
       (files) =>
-        ["image/jpeg", "image/png", "image/webp"].includes(files[0]?.type),
+        files.every((file) =>
+          ["image/jpeg", "image/png", "image/webp"].includes(file.type)
+        ),
       "Only JPEG, PNG and WebP images are allowed"
     ),
 });
@@ -41,29 +54,37 @@ const singleCertificationSchema = z
     subject: z.string().min(1, "Subject is required"),
     certificate: z.string().min(1, "Certificate is required"),
     description: z.string().optional(),
-    issue_by: z.string(),
+    issue_by: z.string().min(1, "Issuer is required"),
     year_of_study_start: z
       .string()
-      .min(4, "Year of study incorrect")
-      .max(4, "Year of study incorrect"),
+      .min(1, "Start year is required")
+      .refine((val) => {
+        const year = parseInt(val);
+        return year >= 1950 && year <= new Date().getFullYear() + 5;
+      }, "Invalid start year"),
     year_of_study_end: z
       .string()
-      .min(4, "Year of study incorrect")
-      .max(4, "Year of study incorrect"),
+      .min(1, "End year is required")
+      .refine((val) => {
+        const year = parseInt(val);
+        return year >= 1950 && year <= new Date().getFullYear() + 5;
+      }, "Invalid end year"),
   })
   .refine(
-    (data) => Number(data.year_of_study_start) < Number(data.year_of_study_end),
+    (data) => {
+      const startYear = parseInt(data.year_of_study_start);
+      const endYear = parseInt(data.year_of_study_end);
+      return startYear < endYear;
+    },
     {
-      message: "Year of study start must be before year of study end",
+      message: "Start year must be before end year",
       path: ["year_of_study_end"], // Attach error to specific field
     }
   );
 
 // Wrap in array schema
 export const teacherCertificationSchema = z.object({
-  certifications: z.array(singleCertificationSchema).min(1, {
-    message: "At least one certification is required",
-  }),
+  certifications: z.array(singleCertificationSchema).optional().default([]),
 });
 
 export type TeacherCertificationRegistrationInputs = z.infer<
@@ -79,26 +100,34 @@ const singleEducationSchema = z
     specialization: z.string().min(1, "Specialization is required"),
     year_of_study_start: z
       .string()
-      .min(4, "Year of study incorrect")
-      .max(4, "Year of study incorrect"),
+      .min(1, "Start year is required")
+      .refine((val) => {
+        const year = parseInt(val);
+        return year >= 1950 && year <= new Date().getFullYear() + 5;
+      }, "Invalid start year"),
     year_of_study_end: z
       .string()
-      .min(4, "Year of study incorrect")
-      .max(4, "Year of study incorrect"),
+      .min(1, "End year is required")
+      .refine((val) => {
+        const year = parseInt(val);
+        return year >= 1950 && year <= new Date().getFullYear() + 5;
+      }, "Invalid end year"),
   })
   .refine(
-    (data) => Number(data.year_of_study_start) < Number(data.year_of_study_end),
+    (data) => {
+      const startYear = parseInt(data.year_of_study_start);
+      const endYear = parseInt(data.year_of_study_end);
+      return startYear < endYear;
+    },
     {
-      message: "Year of study start must be before year of study end",
+      message: "Start year must be before end year",
       path: ["year_of_study_end"], // Attach error to specific field
     }
   );
 
 // Wrap in array schema
 export const teacherEducationSchema = z.object({
-  educations: z.array(singleEducationSchema).min(1, {
-    message: "At least one education entry is required",
-  }),
+  educations: z.array(singleEducationSchema).optional().default([]),
 });
 
 export type TeacherEducationRegistrationInputs = z.infer<
@@ -155,4 +184,27 @@ export const teacherPricingSchema = z.object({
 
 export type TeacherPricingRegistrationInputs = z.infer<
   typeof teacherPricingSchema
+>;
+
+// Teacher Languages Schema - using same proficiency levels as course proficiency
+export const teacherLanguagesSchema = z.object({
+  languages: z
+    .array(
+      z.object({
+        language_id: z.coerce.number().min(1, "Language is required"),
+        proficiency_level: z.enum([
+          "beginner",
+          "elementary",
+          "intermediate",
+          "upper_intermediate",
+          "advanced",
+          "proficient",
+        ]),
+      })
+    )
+    .min(1, "At least one language is required"),
+});
+
+export type TeacherLanguagesRegistrationInputs = z.infer<
+  typeof teacherLanguagesSchema
 >;

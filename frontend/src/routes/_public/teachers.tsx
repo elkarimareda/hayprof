@@ -17,7 +17,7 @@ import { Clock, Users, DollarSign, User, MapPin, Award } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/utils/request";
 
-export const Route = createFileRoute("/_authenticated/_app/teachers")({
+export const Route = createFileRoute("/_public/teachers")({
   component: TeachersListing,
 });
 

@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -63,6 +64,13 @@ class User extends Authenticatable
         return $this->hasOne(Teacher::class);
     }
 
+    public function languages(): BelongsToMany
+    {
+        return $this->belongsToMany(Language::class, 'user_languages')
+            ->withPivot('proficiency_level')
+            ->withTimestamps();
+    }
+
     public function isStudent()
     {
         return $this->user_type === 'student';
@@ -77,10 +85,8 @@ class User extends Authenticatable
     {
         $profile = $this->isStudent() ? $this->student : $this->teacher;
 
-        // Add photo URL for teachers
-        if ($this->isTeacher() && $profile) {
-            $profile->photo_url = $profile->profilePhotoUrl();
-        }
+        // For teachers, we'll handle photo_url in the controller/API response
+        // Don't modify the model instance to avoid database update issues
 
         return $profile;
     }

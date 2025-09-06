@@ -12,6 +12,8 @@ import type {
 import Combobox from "@/components/ui/Combobox";
 import FieldSelect from "@/components/ui/FieldSelect";
 import DatePicker from "@/components/ui/DatePicker";
+import DateTimePicker from "@/components/ui/DateTimePicker";
+import Dropzone from "@/components/ui/dropzone";
 import {
   FormControl,
   FormDescription,
@@ -26,6 +28,7 @@ type FieldType =
   | "string"
   | "number"
   | "date"
+  | "datetime"
   | "select"
   | "text"
   | "textarea"
@@ -45,6 +48,10 @@ interface Props<T extends FieldValues> {
   type?: FieldType; // Optional, defaults to "text",
   description?: string; // Optional, for additional information
   accept?: string; // Optional, for file input types
+  maxFiles?: number; // Optional, for dropzone max files
+  maxSize?: number; // Optional, for dropzone max file size
+  min?: string; // Optional, for date/datetime minimum value or number minimum
+  max?: string; // Optional, for date/datetime maximum value or number maximum
 }
 
 function Field<T extends FieldValues>({
@@ -56,11 +63,17 @@ function Field<T extends FieldValues>({
   options = [],
   name,
   accept,
+  maxFiles = 1,
+  maxSize = 5 * 1024 * 1024, // 5MB default
+  min,
+  max,
 }: Props<T>) {
   const input = (field: ControllerRenderProps<T, Path<T>>) => {
     switch (type) {
       case "date":
-        return <DatePicker {...field} />;
+        return <DatePicker {...field} min={min} />;
+      case "datetime":
+        return <DateTimePicker {...field} min={min} />;
       case "textarea":
         return (
           <Textarea
@@ -86,21 +99,24 @@ function Field<T extends FieldValues>({
         );
       case "file":
         return (
-          <Input
-            type="file"
-            name={field.name}
-            ref={field.ref}
-            accept={accept}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-              field.onChange(e.target.files);
+          <Dropzone
+            onFilesChange={(files) => {
+              return field.onChange(files);
             }}
-            className={cn(error && "border-red-400 focus-visible:ring-red-400")}
+            accept={accept ? { [accept]: [] } : undefined}
+            value={field.value || []}
+            maxFiles={maxFiles}
+            maxSize={maxSize}
+            className={cn(error && "border-red-400")}
           />
         );
       default:
         return (
           <Input
             type={type}
+            autoComplete={type === "password" ? "new-password" : "off"}
+            min={min}
+            max={max}
             {...field}
             className={cn(error && "border-red-400 focus-visible:ring-red-400")}
           />

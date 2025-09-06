@@ -9,10 +9,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
-import { LogOut, User, Settings } from "lucide-react";
-import { useRouter } from "@tanstack/react-router";
+import { LogOut, User } from "lucide-react";
+import { Link, useRouter } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 function UserMenu() {
+  const { t } = useTranslation();
   const { user, logout, isAuthenticated } = useAuth();
   const router = useRouter();
 
@@ -74,15 +76,7 @@ function UserMenu() {
           className="px-3 py-2 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive transition-colors cursor-pointer"
         >
           <User className="mr-2 h-4 w-4" />
-          <span>Profile</span>
-        </DropdownMenuItem>
-
-        <DropdownMenuItem
-          onClick={() => router.navigate({ to: "/settings" })}
-          className="px-3 py-2 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive transition-colors cursor-pointer"
-        >
-          <Settings className="mr-2 h-4 w-4" />
-          <span>Settings</span>
+          <span>{t("profile")}</span>
         </DropdownMenuItem>
 
         <DropdownMenuSeparator className="bg-border" />
@@ -92,11 +86,15 @@ function UserMenu() {
           className="px-3 py-2 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive transition-colors cursor-pointer"
         >
           <LogOut className="mr-2 h-4 w-4" />
-          <span>Sign Out</span>
+          <span>{t("logout")}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  ) : null;
+  ) : (
+    <Link to="/login" className="text-sm text-muted-foreground">
+      {t("login")}
+    </Link>
+  );
 }
 
 export default UserMenu;

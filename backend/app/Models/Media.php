@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 
 class Media extends Model
 {
+    protected $table = 'medias';
     protected $fillable = [
         'mediable_id',
         'mediable_type',
