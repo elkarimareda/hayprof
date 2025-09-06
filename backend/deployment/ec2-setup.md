@@ -1,27 +1,31 @@
 # AWS EC2 Deployment Guide for HayProf
 
 ## Overview
+
 This guide will help you deploy the HayProf application (Laravel backend + React frontend) to AWS EC2.
 
 ## Prerequisites
-- AWS Account with EC2 access
-- Domain name (optional but recommended)
-- SSH key pair for EC2 access
+
+-   AWS Account with EC2 access
+-   Domain name (optional but recommended)
+-   SSH key pair for EC2 access
 
 ## Step 1: Create EC2 Instance
 
 ### Instance Configuration
-- **AMI**: Ubuntu Server 22.04 LTS
-- **Instance Type**: t3.medium (2 vCPU, 4 GB RAM) - minimum recommended
-- **Storage**: 20 GB gp3 SSD
-- **Security Group**: Create new with the following rules:
-  - SSH (22) - Your IP only
-  - HTTP (80) - 0.0.0.0/0
-  - HTTPS (443) - 0.0.0.0/0
-  - MySQL (3306) - Security Group only (for internal access)
-  - Custom TCP (3000) - 0.0.0.0/0 (for React dev server, can be removed in production)
+
+-   **AMI**: Ubuntu Server 22.04 LTS
+-   **Instance Type**: t3.medium (2 vCPU, 4 GB RAM) - minimum recommended
+-   **Storage**: 20 GB gp3 SSD
+-   **Security Group**: Create new with the following rules:
+    -   SSH (22) - Your IP only
+    -   HTTP (80) - 0.0.0.0/0
+    -   HTTPS (443) - 0.0.0.0/0
+    -   MySQL (3306) - Security Group only (for internal access)
+    -   Custom TCP (3000) - 0.0.0.0/0 (for React dev server, can be removed in production)
 
 ### Launch Steps
+
 1. Go to AWS EC2 Console
 2. Click "Launch Instance"
 3. Choose Ubuntu Server 22.04 LTS
@@ -44,11 +48,13 @@ Run the setup script (see ec2-initial-setup.sh) or follow manual steps below.
 ### Manual Setup Steps
 
 #### Update System
+
 ```bash
 sudo apt update && sudo apt upgrade -y
 ```
 
 #### Install Docker and Docker Compose
+
 ```bash
 # Install Docker
 curl -fsSL https://get.docker.com -o get-docker.sh
@@ -64,12 +70,14 @@ exit
 ```
 
 #### Install Node.js and npm
+
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
 ```
 
 #### Install Nginx
+
 ```bash
 sudo apt install nginx -y
 sudo systemctl enable nginx
@@ -79,12 +87,14 @@ sudo systemctl start nginx
 ## Step 4: Deploy Application
 
 ### Clone Repository
+
 ```bash
 git clone https://github.com/elkarimareda/hayprof.git
 cd hayprof
 ```
 
 ### Environment Configuration
+
 ```bash
 # Copy environment files
 cp backend/.env.example backend/.env
@@ -94,7 +104,7 @@ cp frontend/.env.example frontend/.env
 nano backend/.env
 # Update database and other settings (see environment section below)
 
-# Edit frontend environment  
+# Edit frontend environment
 nano frontend/.env
 # Update API URLs and other settings
 ```
@@ -102,6 +112,7 @@ nano frontend/.env
 ### Environment Variables
 
 #### Backend (.env)
+
 ```env
 APP_NAME=HayProf
 APP_ENV=production
@@ -164,12 +175,14 @@ VITE_PUSHER_APP_CLUSTER="${PUSHER_APP_CLUSTER}"
 ```
 
 #### Frontend (.env)
+
 ```env
 VITE_API_URL=https://yourdomain.com/api
 VITE_APP_URL=https://yourdomain.com
 ```
 
 ### Build and Deploy
+
 ```bash
 # Build frontend
 cd frontend
@@ -196,6 +209,7 @@ Create Nginx configuration (see nginx configuration files).
 ## Step 6: SSL Certificate (Optional but Recommended)
 
 ### Using Let's Encrypt
+
 ```bash
 sudo apt install certbot python3-certbot-nginx -y
 sudo certbot --nginx -d yourdomain.com
@@ -217,6 +231,7 @@ sudo certbot --nginx -d yourdomain.com
 ## Monitoring and Maintenance
 
 ### View Logs
+
 ```bash
 # Application logs
 docker logs hayprof-backend
@@ -228,11 +243,13 @@ sudo tail -f /var/log/nginx/access.log
 ```
 
 ### Backup Database
+
 ```bash
 docker exec hayprof-mysql mysqldump -u hayprof_user -p hayprof > backup.sql
 ```
 
 ### Update Application
+
 ```bash
 git pull origin main
 cd frontend && npm run build
@@ -252,12 +269,14 @@ docker-compose up -d --build
 ## Troubleshooting
 
 ### Common Issues
+
 1. **Permission errors**: Check file permissions and ownership
 2. **Database connection**: Verify environment variables and Docker network
 3. **Build failures**: Check Node.js version and npm dependencies
 4. **SSL issues**: Verify domain DNS and certificate installation
 
 ### Useful Commands
+
 ```bash
 # Restart all services
 docker-compose restart

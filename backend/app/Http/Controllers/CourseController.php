@@ -38,13 +38,13 @@ class CourseController extends Controller
 
     // Validate that schedule count matches count_session
     // Filter out empty schedule slots
-    $validSchedules = array_filter($validated['schedule'], function($schedule) {
+    $validSchedules = array_filter($validated['schedule'], function ($schedule) {
       return !empty($schedule['date']) && trim($schedule['date']) !== '';
     });
-    
+
     $scheduleCount = count($validSchedules);
     $sessionCount = (int) $validated['count_session'];
-    
+
     if ($scheduleCount !== $sessionCount) {
       Log::error('Schedule validation failed', [
         'schedule_count' => $scheduleCount,
@@ -56,7 +56,7 @@ class CourseController extends Controller
         'valid_schedule_slots' => $scheduleCount,
         'schedule_data' => $validated['schedule']
       ]);
-      
+
       return response()->json([
         'message' => "Number of valid schedule slots ($scheduleCount) must match the session count ($sessionCount)",
         'errors' => [
@@ -70,7 +70,7 @@ class CourseController extends Controller
         ]
       ], 422);
     }
-    
+
     // Update validated schedule to only include valid schedules
     $validated['schedule'] = array_values($validSchedules);
 

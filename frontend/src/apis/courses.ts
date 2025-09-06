@@ -71,11 +71,13 @@ export const createCourse = async (
   console.log("Schedule data before sending:", data.schedule);
   console.log("Count session:", data.count_session);
   console.log("Schedule length:", data.schedule.length);
-  
+
   // Filter out empty schedules and reindex
-  const validSchedules = data.schedule.filter(schedule => schedule.date && schedule.date.trim() !== '');
+  const validSchedules = data.schedule.filter(
+    (schedule) => schedule.date && schedule.date.trim() !== ""
+  );
   console.log("Valid schedules:", validSchedules);
-  
+
   validSchedules.forEach((schedule, index) => {
     formData.append(`schedule[${index}][date]`, schedule.date);
     console.log(`Adding schedule[${index}][date]:`, schedule.date);
