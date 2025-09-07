@@ -12,52 +12,53 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --hayprof-primary-red: #ca1f39; /* Logo Red */
-  --hayprof-secondary-yellow: #f5c542; /* Logo Yellow */
-  --hayprof-accent-yellow: #ffe08a; /* Lighter Yellow Accent */
-  --hayprof-warm-bg: #fff7f3; /* Soft beige background */
+  /* Professional Blue & Yellow Palette with Good Contrast */
+  --hayprof-deep-blue: #4955A5;        /* Primary - Deep Blue (base color) */
+  --hayprof-bright-yellow: #FED628;    /* Secondary - Bright Yellow (base color) */
+  --hayprof-light-blue: #6B75C7;       /* Accent - Lighter Blue (harmony) */
+  --hayprof-soft-yellow: #FFF4A3;      /* Background - Soft Yellow (harmony) */
 
   --radius: 0.625rem;
-  --background: var(--hayprof-warm-bg);
-  --foreground: #1e1e1e;
+  --background: #ffffff;
+  --foreground: #1f2937; /* Dark gray for excellent readability */
   --card: #ffffff;
-  --card-foreground: #1e1e1e;
+  --card-foreground: #1f2937; /* Dark gray for readable text */
   --popover: #ffffff;
-  --popover-foreground: #1e1e1e;
+  --popover-foreground: #1f2937; /* Dark gray for readable text */
 
   /* Primary / Secondary */
-  --primary: var(--hayprof-primary-red);
+  --primary: var(--hayprof-deep-blue);
   --primary-foreground: #ffffff;
-  --secondary: var(--hayprof-secondary-yellow);
-  --secondary-foreground: var(--hayprof-primary-red);
+  --secondary: var(--hayprof-bright-yellow);
+  --secondary-foreground: #1f2937; /* Dark gray for contrast on yellow */
 
-  --muted: #f3f0ed;
-  --muted-foreground: #444444;
+  --muted: #f8f9fa;
+  --muted-foreground: #6b7280; /* Medium gray for muted text */
 
-  --accent: var(--hayprof-secondary-yellow);
-  --accent-foreground: #1e1e1e;
+  --accent: var(--hayprof-soft-yellow);
+  --accent-foreground: #1f2937; /* Dark gray for contrast on light yellow */
 
-  --destructive: #b22222;
-  --border: #e4d8d4;
-  --input: #e4d8d4;
-  --ring: var(--hayprof-primary-red);
+  --destructive: #dc2626;
+  --border: #e5e7eb;
+  --input: #ffffff;
+  --ring: var(--hayprof-deep-blue);
 
   /* Charts */
-  --chart-1: var(--hayprof-primary-red);
-  --chart-2: var(--hayprof-secondary-yellow);
-  --chart-3: var(--hayprof-accent-yellow);
-  --chart-4: #3c82f6;
-  --chart-5: #6b5b95;
+  --chart-1: var(--hayprof-deep-blue);
+  --chart-2: var(--hayprof-bright-yellow);
+  --chart-3: var(--hayprof-light-blue);
+  --chart-4: var(--hayprof-soft-yellow);
+  --chart-5: #6b7280;
 
   /* Sidebar */
-  --sidebar: #faf6f2;
-  --sidebar-foreground: #1e1e1e;
-  --sidebar-primary: var(--hayprof-primary-red);
+  --sidebar: #f8f9fa;
+  --sidebar-foreground: #1f2937; /* Dark gray for readable text */
+  --sidebar-primary: var(--hayprof-deep-blue);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: var(--hayprof-secondary-yellow);
-  --sidebar-accent-foreground: var(--hayprof-primary-red);
-  --sidebar-border: #e4d8d4;
-  --sidebar-ring: var(--hayprof-primary-red);
+  --sidebar-accent: var(--hayprof-bright-yellow);
+  --sidebar-accent-foreground: #1f2937; /* Dark gray for contrast */
+  --sidebar-border: #e5e7eb;
+  --sidebar-ring: var(--hayprof-deep-blue);
 }
 
 #root {
@@ -66,12 +67,12 @@
 
 a {
   font-weight: 500;
-  color: var(--hayprof-primary-red);
+  color: var(--hayprof-deep-blue);
   text-decoration: inherit;
   transition: color 0.2s ease;
 }
 a:hover {
-  color: var(--hayprof-secondary-yellow);
+  color: var(--hayprof-light-blue);
 }
 
 body {
@@ -85,15 +86,15 @@ body {
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
-  color: var(--hayprof-primary-red);
+  color: #1f2937; /* Dark gray for readability */
 }
 
 h2 {
-  color: var(--hayprof-primary-red);
+  color: #374151; /* Dark gray for readability */
 }
 
 h3 {
-  color: var(--hayprof-primary-red);
+  color: #374151; /* Dark gray for readability */
 }
 
 button {
@@ -102,79 +103,75 @@ button {
 
 /* Hayprof custom utility classes */
 .hayprof-gradient-bg {
-  background: linear-gradient(
-    135deg,
-    oklch(0.97 0.02 85.873) 0%,
-    oklch(0.95 0.03 85.873) 100%
-  );
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
 }
 
 .hayprof-card-hover {
   transition: all 0.3s ease;
-  border-color: oklch(0.922 0.05 85.873);
+  border-color: #e5e7eb;
 }
 
 .hayprof-card-hover:hover {
-  border-color: var(--hayprof-secondary-yellow);
-  box-shadow: 0 4px 20px oklch(0.785 0.175 85.873 / 0.2);
+  border-color: var(--hayprof-light-blue);
+  box-shadow: 0 4px 20px rgba(107, 117, 199, 0.15);
   transform: translateY(-2px);
 }
 
 .hayprof-button-primary {
-  background-color: var(--hayprof-primary-red);
-  color: oklch(0.985 0 0);
+  background-color: var(--hayprof-deep-blue);
+  color: #ffffff;
   transition: all 0.3s ease;
 }
 
 .hayprof-button-primary:hover {
-  background-color: oklch(0.45 0.245 27.325);
+  background-color: var(--hayprof-light-blue);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px oklch(0.502 0.245 27.325 / 0.3);
+  box-shadow: 0 4px 12px rgba(73, 85, 165, 0.3);
 }
 
 .hayprof-button-secondary {
-  background-color: var(--hayprof-secondary-yellow);
-  color: var(--hayprof-primary-red);
+  background-color: var(--hayprof-bright-yellow);
+  color: #1f2937;
   transition: all 0.3s ease;
 }
 
 .hayprof-button-secondary:hover {
-  background-color: var(--hayprof-accent-yellow);
+  background-color: var(--hayprof-soft-yellow);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px oklch(0.785 0.175 85.873 / 0.3);
+  box-shadow: 0 4px 12px rgba(254, 214, 40, 0.3);
 }
 
 .hayprof-text-primary {
-  color: var(--hayprof-primary-red);
+  color: var(--hayprof-deep-blue);
 }
 
 .hayprof-text-secondary {
-  color: var(--hayprof-secondary-yellow);
+  color: var(--hayprof-bright-yellow);
 }
 
 .hayprof-bg-primary {
-  background-color: var(--hayprof-primary-red);
+  background-color: var(--hayprof-deep-blue);
 }
 
 .hayprof-bg-secondary {
-  background-color: var(--hayprof-secondary-yellow);
+  background-color: var(--hayprof-bright-yellow);
 }
 
 .hayprof-bg-accent {
-  background-color: var(--hayprof-accent-yellow);
+  background-color: var(--hayprof-soft-yellow);
 }
 
 .hayprof-border-primary {
-  border-color: var(--hayprof-primary-red);
+  border-color: var(--hayprof-deep-blue);
 }
 
 .hayprof-border-secondary {
-  border-color: var(--hayprof-secondary-yellow);
+  border-color: var(--hayprof-bright-yellow);
 }
 
 /* Focus states with Hayprof colors */
 .hayprof-focus:focus {
-  outline: 2px solid var(--hayprof-primary-red);
+  outline: 2px solid var(--hayprof-deep-blue);
   outline-offset: 2px;
 }
 
@@ -184,7 +181,7 @@ button {
     background-color: var(--hayprof-warm-bg);
   }
   a:hover {
-    color: var(--hayprof-secondary-yellow);
+    color: var(--hayprof-secondary-coral);
   }
 }
 
@@ -228,67 +225,67 @@ button {
 
 .dark {
   /* Hayprof dark theme variables */
-  --hayprof-dark-bg: oklch(0.145 0.005 27.325);
-  --hayprof-dark-card: oklch(0.205 0.01 27.325);
+  --hayprof-dark-bg: #2a2f3e;
+  --hayprof-dark-card: #353b4f;
 
   --background: var(--hayprof-dark-bg);
-  --foreground: oklch(0.985 0 0);
+  --foreground: #f8f9fa;
   --card: var(--hayprof-dark-card);
-  --card-foreground: oklch(0.985 0 0);
+  --card-foreground: #f8f9fa;
   --popover: var(--hayprof-dark-card);
-  --popover-foreground: oklch(0.985 0 0);
+  --popover-foreground: #f8f9fa;
 
-  /* Primary remains Hayprof red but lighter for dark mode */
-  --primary: oklch(0.6 0.245 27.325);
-  --primary-foreground: oklch(0.985 0 0);
+  /* Primary remains blue but lighter for dark mode */
+  --primary: #7a87b0;
+  --primary-foreground: #ffffff;
 
-  /* Secondary using lighter Hayprof yellow for dark mode */
-  --secondary: oklch(0.3 0.02 85.873);
-  --secondary-foreground: var(--hayprof-accent-yellow);
+  /* Secondary using darker coral for dark mode */
+  --secondary: #4a505a;
+  --secondary-foreground: var(--hayprof-accent-peach);
 
-  --muted: oklch(0.269 0.01 27.325);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted: #404756;
+  --muted-foreground: #c9cdd4;
 
-  /* Accent with Hayprof yellow adjusted for dark mode */
-  --accent: oklch(0.269 0.02 85.873);
-  --accent-foreground: var(--hayprof-accent-yellow);
+  /* Accent with peach adjusted for dark mode */
+  --accent: #4a505a;
+  --accent-foreground: var(--hayprof-accent-peach);
 
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 18%);
-  --ring: var(--hayprof-accent-yellow);
+  --destructive: #e74c3c;
+  --border: rgba(248, 249, 250, 0.12);
+  --input: rgba(248, 249, 250, 0.18);
+  --ring: var(--hayprof-accent-peach);
 
   /* Dark mode chart colors */
-  --chart-1: oklch(0.6 0.245 27.325);
-  --chart-2: var(--hayprof-secondary-yellow);
-  --chart-3: var(--hayprof-accent-yellow);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  --chart-1: #7a87b0;
+  --chart-2: var(--hayprof-secondary-coral);
+  --chart-3: var(--hayprof-accent-peach);
+  --chart-4: #3498db;
+  --chart-5: #9b59b6;
 
   /* Dark sidebar with Hayprof theme */
   --sidebar: var(--hayprof-dark-card);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.6 0.245 27.325);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0.02 85.873);
-  --sidebar-accent-foreground: var(--hayprof-accent-yellow);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: var(--hayprof-accent-yellow);
+  --sidebar-foreground: #f8f9fa;
+  --sidebar-primary: #7a87b0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #4a505a;
+  --sidebar-accent-foreground: var(--hayprof-accent-peach);
+  --sidebar-border: rgba(248, 249, 250, 0.12);
+  --sidebar-ring: var(--hayprof-accent-peach);
 }
 
 /* Dark mode specific Hayprof utilities */
 .dark .hayprof-card-hover:hover {
-  border-color: var(--hayprof-accent-yellow);
-  box-shadow: 0 4px 20px oklch(0.877 0.138 95.637 / 0.15);
+  border-color: var(--hayprof-accent-peach);
+  box-shadow: 0 4px 20px rgba(255, 219, 182, 0.15);
 }
 
 .dark .hayprof-button-primary {
-  background-color: oklch(0.6 0.245 27.325);
+  background-color: #7a87b0;
 }
 
 .dark .hayprof-button-primary:hover {
-  background-color: oklch(0.65 0.245 27.325);
-  box-shadow: 0 4px 12px oklch(0.6 0.245 27.325 / 0.4);
+  background-color: #8a96c0;
+  box-shadow: 0 4px 12px rgba(122, 135, 176, 0.4);
 }
 
 @layer base {
