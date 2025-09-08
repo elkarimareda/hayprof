@@ -17,6 +17,7 @@ interface Props {
   value?: string;
   onChange?: (date: string) => void;
   min?: string;
+  max?: string;
 }
 
 export default function DatePicker({
@@ -24,17 +25,17 @@ export default function DatePicker({
   onChange,
   placeholder,
   min,
+  max,
 }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
-  // Parse minimum date - ensure today is always allowed
+  // Parse minimum and maximum dates
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const minDate = min ? new Date(min) : today;
-  // Ensure minDate doesn't exceed today (allow today selection)
-  const effectiveMinDate = minDate > today ? today : minDate;
+  const minDate = min ? new Date(min) : undefined;
+  const maxDate = max ? new Date(max) : undefined;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -68,9 +69,13 @@ export default function DatePicker({
               onChange?.(format(date, "yyyy-MM-dd"));
               setOpen(false);
             }}
-            disabled={(date) =>
-              date < effectiveMinDate || date < new Date("1900-01-01")
-            }
+            disabled={(date) => {
+              const isBeforeMin = minDate
+                ? date < minDate || date < new Date("1900-01-01")
+                : date < new Date("1900-01-01");
+              const isAfterMax = maxDate ? date > maxDate : false;
+              return isBeforeMin || isAfterMax;
+            }}
             captionLayout="dropdown"
           />
           <div className="flex gap-2 mt-2">
@@ -82,6 +87,10 @@ export default function DatePicker({
                 onChange?.(format(today, "yyyy-MM-dd"));
                 setOpen(false);
               }}
+              disabled={
+                (minDate ? today < minDate : false) ||
+                (maxDate ? today > maxDate : false)
+              }
               className="flex-1"
             >
               {t("today")}

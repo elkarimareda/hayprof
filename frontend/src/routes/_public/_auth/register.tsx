@@ -1,5 +1,5 @@
 // Register.tsx
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import api from "@/utils/request";
 import { UserType } from "@/Models/Auth";
 import { Button } from "@/components/ui/button";
@@ -69,9 +69,10 @@ function Register() {
     try {
       const response = await api.post("/register", data);
       console.log("Registration successful:", response.data);
-      redirect({ to: "/login" });
+      navigate({ to: "/login" });
       toast.success(t("registration_success"));
     } catch (error: unknown) {
+      console.log("Registration error:", error);
       const axiosError = error as AxiosError<{ message: string }>;
       const errorMessage =
         axiosError.response?.data?.message || "Registration failed";
@@ -121,7 +122,7 @@ function Register() {
             />
             <Field
               control={form.control}
-              label="Confirm Password"
+              label={t("confirm_password")}
               type="password"
               name="password_confirmation"
               error={form.formState.errors.password_confirmation}
@@ -131,6 +132,7 @@ function Register() {
               label={t("birth_date")}
               type="date"
               name="birth_date"
+              max={format(subYears(new Date(), 18), "yyyy-MM-dd")}
               error={form.formState.errors.birth_date}
             />
             <Field

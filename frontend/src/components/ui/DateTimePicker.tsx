@@ -18,6 +18,7 @@ interface Props {
   value?: string;
   onChange?: (datetime: string) => void;
   min?: string;
+  max?: string;
 }
 
 export default function DateTimePicker({
@@ -25,6 +26,7 @@ export default function DateTimePicker({
   onChange,
   placeholder,
   min,
+  max,
 }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -33,8 +35,9 @@ export default function DateTimePicker({
   const dateValue = value ? new Date(value) : undefined;
   const timeValue = value ? format(new Date(value), "HH:mm") : "";
 
-  // Parse min datetime
-  const minDate = min ? new Date(min) : new Date();
+  // Parse min and max datetime
+  const minDate = min ? new Date(min) : undefined;
+  const maxDate = max ? new Date(max) : undefined;
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
@@ -46,7 +49,14 @@ export default function DateTimePicker({
     const newDateTime = new Date(date);
     newDateTime.setHours(hours, minutes, 0, 0);
 
-    onChange?.(newDateTime.toISOString().slice(0, 16));
+    // Check if the new datetime is within bounds
+    const isWithinBounds =
+      (!minDate || newDateTime >= minDate) &&
+      (!maxDate || newDateTime <= maxDate);
+
+    if (isWithinBounds) {
+      onChange?.(newDateTime.toISOString().slice(0, 16));
+    }
   };
 
   const handleTimeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,7 +69,14 @@ export default function DateTimePicker({
     const newDateTime = new Date(currentDate);
     newDateTime.setHours(hours, minutes, 0, 0);
 
-    onChange?.(newDateTime.toISOString().slice(0, 16));
+    // Check if the new datetime is within bounds
+    const isWithinBounds =
+      (!minDate || newDateTime >= minDate) &&
+      (!maxDate || newDateTime <= maxDate);
+
+    if (isWithinBounds) {
+      onChange?.(newDateTime.toISOString().slice(0, 16));
+    }
   };
 
   return (
@@ -92,7 +109,11 @@ export default function DateTimePicker({
               selected={dateValue}
               defaultMonth={dateValue}
               onSelect={handleDateSelect}
-              disabled={(date) => date < minDate}
+              disabled={(date) => {
+                const isBeforeMin = minDate ? date < minDate : false;
+                const isAfterMax = maxDate ? date > maxDate : false;
+                return isBeforeMin || isAfterMax;
+              }}
               captionLayout="dropdown"
             />
             <div className="space-y-2">

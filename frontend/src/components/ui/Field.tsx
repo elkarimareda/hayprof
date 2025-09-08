@@ -71,9 +71,9 @@ function Field<T extends FieldValues>({
   const input = (field: ControllerRenderProps<T, Path<T>>) => {
     switch (type) {
       case "date":
-        return <DatePicker {...field} min={min} />;
+        return <DatePicker {...field} min={min} max={max} />;
       case "datetime":
-        return <DateTimePicker {...field} min={min} />;
+        return <DateTimePicker {...field} min={min} max={max} />;
       case "textarea":
         return (
           <Textarea

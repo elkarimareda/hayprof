@@ -10,6 +10,7 @@
   "loading": "Loading...",
   "welcome_message": "Welcome to our application!",
   "password": "Password",
+  "confirm_password": "Confirm Password",
   "remember_me": "Remember me",
   "login": "Login",
   "logout": "Logout",
@@ -45,6 +46,8 @@
   "degree": "Degree",
   "specialization": "Specialization",
   "university": "University",
+  "student": "Student",
+  "teacher": "Teacher",
   "register_title_student": "Register as a Student",
   "register_title_teacher": "Register as a Teacher",
   "descriptions": {
