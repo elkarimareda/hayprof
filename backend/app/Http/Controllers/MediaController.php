@@ -44,7 +44,7 @@ class MediaController extends Controller
       return response()->json(['error' => 'Introduction video must be a video file'], 422);
     }
 
-    $path = $file->store("uploads/{$purpose}");
+    $path = $file->store("uploads/{$purpose}", 's3');
 
     $media = Media::create([
       'mediable_id'   => $request->user()?->id,
@@ -55,7 +55,7 @@ class MediaController extends Controller
       'mime_type'     => $mime,
       'size'          => $file->getSize(),
       'thumbnail_path' => $thumbnails
-        ? $thumbnails->store('uploads/thumbnails') // later generate real thumbnail
+        ? $thumbnails->store('uploads/thumbnails', 's3') // store thumbnail on S3
         : null,
     ]);
 
@@ -63,7 +63,7 @@ class MediaController extends Controller
       'id'         => $media->id,
       'type' => $media->type,
       'media_purpose' => $media->media_purpose,
-      'url'        => Storage::url($media->file_path),
+      'url'        => $media->file_path ? Storage::url($media->file_path) : null,
     ]);
   }
 }

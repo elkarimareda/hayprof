@@ -27,6 +27,10 @@ class Media extends Model
 
     public function url(): string
     {
+        // Return empty string if file_path is null or empty to avoid S3 GetObject errors
+        if (empty($this->file_path)) {
+            return '';
+        }
         return Storage::url($this->file_path);
     }
 
