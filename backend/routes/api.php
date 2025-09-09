@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\TeacherController;
@@ -32,6 +33,8 @@ Route::middleware('api')->group(function () {
 
   // Public teacher browsing
   Route::get('/teachers', [TeacherController::class, 'index']);
+  Route::get('/teachers/{id}', [TeacherController::class, 'profile']);
+  Route::get('/teachers/{id}/reviews', [ReviewController::class, 'getTeacherReviews']);
 
   // Public student browsing
   Route::get('/students', [StudentController::class, 'index']);
@@ -47,6 +50,12 @@ Route::middleware('api')->group(function () {
     Route::get('/courses', [CourseController::class, 'index']);
     Route::post('/courses', [CourseController::class, 'store']);
 
+    // Review routes (authenticated users)
+    Route::get('/reviews/my', [ReviewController::class, 'getMyReviews']);
+    Route::post('/reviews', [ReviewController::class, 'store']);
+    Route::put('/reviews/{id}', [ReviewController::class, 'update']);
+    Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
+
     // Admin-only reference data management
     Route::middleware('admin')->group(function () {
       Route::post('/subjects', [SubjectController::class, 'store']);
@@ -61,6 +70,9 @@ Route::middleware('api')->group(function () {
       Route::get('/courses/pending-validation', [CourseController::class, 'pendingValidation']);
       Route::post('/courses/{course}/validate', [CourseController::class, 'validateCourse']);
       Route::post('/courses/{course}/reject', [CourseController::class, 'rejectCourse']);
+
+      // Review moderation
+      Route::put('/reviews/{id}/moderate', [ReviewController::class, 'moderateReview']);
     });
   });
 });

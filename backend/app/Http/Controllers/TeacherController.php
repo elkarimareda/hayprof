@@ -61,6 +61,8 @@ class TeacherController extends Controller
           ->pluck('subject.name')
           ->unique()
           ->values(),
+        'average_rating' => $teacher->getAverageRating(),
+        'total_reviews' => $teacher->getTotalReviews(),
       ];
     });
 
@@ -191,6 +193,12 @@ class TeacherController extends Controller
             'created_at' => $course->created_at,
           ];
         }),
+
+        'reviews' => [
+          'average_rating' => $teacher->getAverageRating(),
+          'total_reviews' => $teacher->getTotalReviews(),
+          'rating_distribution' => $teacher->getRatingDistribution(),
+        ],
 
         'availabilities' => $teacher->availabilities->groupBy('day_of_week')->map(function ($daySlots, $day) {
           return $daySlots->map(function ($slot) {

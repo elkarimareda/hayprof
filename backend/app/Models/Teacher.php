@@ -54,6 +54,18 @@ class Teacher extends Model
         return $this->hasMany(Education::class);
     }
 
+    // Reviews relationship
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    // Approved reviews only
+    public function approvedReviews(): HasMany
+    {
+        return $this->hasMany(Review::class)->approved();
+    }
+
     // Courses relationship
     public function courses(): HasMany
     {
@@ -215,5 +227,32 @@ class Teacher extends Model
     public function isVerified(): bool
     {
         return $this->verified_teacher;
+    }
+
+    // Review statistics methods
+    public function getAverageRating(): float
+    {
+        return round($this->approvedReviews()->avg('rating') ?? 0, 2);
+    }
+
+    public function getTotalReviews(): int
+    {
+        return $this->approvedReviews()->count();
+    }
+
+    public function getRatingDistribution(): array
+    {
+        $distribution = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $distribution[$i] = $this->approvedReviews()->where('rating', $i)->count();
+        }
+        return $distribution;
+    }
+
+    public function getReviewsWithStudents()
+    {
+        return $this->approvedReviews()
+            ->with(['student.user'])
+            ->orderBy('created_at', 'desc');
     }
 }
