@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { getSubjects, type Subject } from "@/apis/reference";
@@ -64,6 +64,7 @@ const getTeachers = async (subjectId?: number): Promise<TeachersResponse> => {
 
 function TeachersListing() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<string>("");
@@ -314,7 +315,12 @@ function TeachersListing() {
 
                     {/* Action buttons */}
                     <div className="flex gap-2 pt-2">
-                      <Button className="flex-1">
+                      <Button
+                        className="flex-1"
+                        onClick={() =>
+                          navigate({ to: `/teacher/${teacher.id}` })
+                        }
+                      >
                         {t("teachers.view_profile", "View Profile")}
                       </Button>
                       <Button variant="outline" size="sm">

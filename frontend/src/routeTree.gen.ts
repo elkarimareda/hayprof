@@ -17,6 +17,7 @@ import { Route as PublicCoursesRouteImport } from './routes/_public/courses'
 import { Route as PublicAuthRouteImport } from './routes/_public/_auth'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/_app'
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard/index'
+import { Route as PublicTeacherIdRouteImport } from './routes/_public/teacher.$id'
 import { Route as PublicAuthRegisterRouteImport } from './routes/_public/_auth/register'
 import { Route as PublicAuthLoginRouteImport } from './routes/_public/_auth/login'
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/_app/profile'
@@ -60,6 +61,11 @@ const AuthenticatedDashboardIndexRoute =
     path: '/dashboard/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const PublicTeacherIdRoute = PublicTeacherIdRouteImport.update({
+  id: '/teacher/$id',
+  path: '/teacher/$id',
+  getParentRoute: () => PublicRoute,
+} as any)
 const PublicAuthRegisterRoute = PublicAuthRegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedAppProfileRoute
   '/login': typeof PublicAuthLoginRoute
   '/register': typeof PublicAuthRegisterRoute
+  '/teacher/$id': typeof PublicTeacherIdRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
 }
 export interface FileRoutesByTo {
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AuthenticatedAppProfileRoute
   '/login': typeof PublicAuthLoginRoute
   '/register': typeof PublicAuthRegisterRoute
+  '/teacher/$id': typeof PublicTeacherIdRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
 }
 export interface FileRoutesById {
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/_authenticated/_app/profile': typeof AuthenticatedAppProfileRoute
   '/_public/_auth/login': typeof PublicAuthLoginRoute
   '/_public/_auth/register': typeof PublicAuthRegisterRoute
+  '/_public/teacher/$id': typeof PublicTeacherIdRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
 }
 export interface FileRouteTypes {
@@ -136,6 +145,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/login'
     | '/register'
+    | '/teacher/$id'
     | '/dashboard'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/login'
     | '/register'
+    | '/teacher/$id'
     | '/dashboard'
   id:
     | '__root__'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/profile'
     | '/_public/_auth/login'
     | '/_public/_auth/register'
+    | '/_public/teacher/$id'
     | '/_authenticated/dashboard/'
   fileRoutesById: FileRoutesById
 }
@@ -227,6 +239,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/_public/teacher/$id': {
+      id: '/_public/teacher/$id'
+      path: '/teacher/$id'
+      fullPath: '/teacher/$id'
+      preLoaderRoute: typeof PublicTeacherIdRouteImport
+      parentRoute: typeof PublicRoute
     }
     '/_public/_auth/register': {
       id: '/_public/_auth/register'
@@ -314,6 +333,7 @@ interface PublicRouteChildren {
   PublicCoursesRoute: typeof PublicCoursesRoute
   PublicTeachersRoute: typeof PublicTeachersRoute
   PublicIndexRoute: typeof PublicIndexRoute
+  PublicTeacherIdRoute: typeof PublicTeacherIdRoute
 }
 
 const PublicRouteChildren: PublicRouteChildren = {
@@ -321,6 +341,7 @@ const PublicRouteChildren: PublicRouteChildren = {
   PublicCoursesRoute: PublicCoursesRoute,
   PublicTeachersRoute: PublicTeachersRoute,
   PublicIndexRoute: PublicIndexRoute,
+  PublicTeacherIdRoute: PublicTeacherIdRoute,
 }
 
 const PublicRouteWithChildren =
