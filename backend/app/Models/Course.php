@@ -58,6 +58,16 @@ class Course extends Model
     return $this->morphMany(Media::class, 'mediable');
   }
 
+  public function reviews(): HasMany
+  {
+    return $this->hasMany(Review::class);
+  }
+
+  public function approvedReviews(): HasMany
+  {
+    return $this->hasMany(Review::class)->approved();
+  }
+
   public function getThumbnailUrlAttribute(): ?string
   {
     $thumbnail = $this->medias()->where('media_purpose', 'course_thumbnail')->first();

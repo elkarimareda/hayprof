@@ -30,11 +30,12 @@ Route::middleware('api')->group(function () {
 
   // Public course browsing
   Route::get('/courses/validated', [CourseController::class, 'validated']);
+  Route::get('/courses/{id}', [CourseController::class, 'show']);
 
   // Public teacher browsing
   Route::get('/teachers', [TeacherController::class, 'index']);
   Route::get('/teachers/{id}', [TeacherController::class, 'profile']);
-  Route::get('/teachers/{id}/reviews', [ReviewController::class, 'getTeacherReviews']);
+  Route::get('/teachers/{id}/reviews', [TeacherController::class, 'getTeacherReviews']);
 
   // Public student browsing
   Route::get('/students', [StudentController::class, 'index']);

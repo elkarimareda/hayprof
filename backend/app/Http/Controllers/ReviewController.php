@@ -48,16 +48,16 @@ class ReviewController extends Controller
         // Validate request
         $validatedData = $request->validate(Review::validationRules());
 
-        // Check if student has already reviewed this teacher for this lesson
+        // Check if student has already reviewed this teacher for this course
         $student = $user->student;
         $existingReview = $student->hasReviewedTeacher(
             $validatedData['teacher_id'], 
-            $validatedData['lesson_date'] ?? null
+            $validatedData['course_id'] ?? null
         );
 
         if ($existingReview) {
             return response()->json([
-                'error' => 'You have already reviewed this teacher for this lesson'
+                'error' => 'You have already reviewed this teacher for this course'
             ], 422);
         }
 
@@ -70,12 +70,12 @@ class ReviewController extends Controller
             'student_id' => $student->id,
             'rating' => $validatedData['rating'],
             'comment' => $validatedData['comment'] ?? null,
-            'lesson_date' => $validatedData['lesson_date'] ?? null,
+            'course_id' => $validatedData['course_id'] ?? null,
             'is_verified' => false, // Will be verified by admin/system
             'is_approved' => true // Auto-approve for now
         ]);
 
-        $review->load(['student.user', 'teacher.user']);
+        $review->load(['student.user', 'teacher.user', 'course']);
 
         return response()->json([
             'message' => 'Review created successfully',
@@ -107,7 +107,7 @@ class ReviewController extends Controller
         ]);
 
         $review->update($validatedData);
-        $review->load(['student.user', 'teacher.user']);
+        $review->load(['student.user', 'teacher.user', 'course']);
 
         return response()->json([
             'message' => 'Review updated successfully',
@@ -150,7 +150,7 @@ class ReviewController extends Controller
         }
 
         $reviews = $user->student->reviews()
-            ->with(['teacher.user'])
+            ->with(['teacher.user', 'course'])
             ->orderBy('created_at', 'desc')
             ->paginate($request->get('per_page', 10));
 

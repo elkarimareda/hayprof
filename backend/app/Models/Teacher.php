@@ -252,7 +252,7 @@ class Teacher extends Model
     public function getReviewsWithStudents()
     {
         return $this->approvedReviews()
-            ->with(['student.user'])
+            ->with(['student.user', 'course'])
             ->orderBy('created_at', 'desc');
     }
 }

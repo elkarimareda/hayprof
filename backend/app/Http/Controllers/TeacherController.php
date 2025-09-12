@@ -177,7 +177,8 @@ class TeacherController extends Controller
             'description' => $course->description,
             'thumbnail_url' => $course->thumbnail_url,
             'price_per_student' => $course->price_per_student,
-            'number_of_hours' => $course->number_of_hours,
+            'count_session' => $course->count_session,
+            'duration_session' => $course->duration_session,
             'min_students' => $course->min_students,
             'max_students' => $course->max_students,
             'schedules' => $course->schedules->map(function ($schedule) {
@@ -232,6 +233,76 @@ class TeacherController extends Controller
 
     return response()->json([
       'languages' => $languages
+    ]);
+  }
+
+  public function getTeacherReviews(Request $request, $teacherId)
+  {
+    $teacher = Teacher::findOrFail($teacherId);
+    
+    $perPage = $request->get('per_page', 10);
+    $rating = $request->get('rating'); // Filter by specific rating
+    $verified = $request->get('verified'); // Filter by verified reviews only
+    
+    $query = $teacher->approvedReviews()
+      ->with(['student.user', 'course.subject']);
+    
+    // Apply filters
+    if ($rating) {
+      $query->where('rating', $rating);
+    }
+    
+    if ($verified === 'true') {
+      $query->where('is_verified', true);
+    }
+    
+    $reviews = $query->orderBy('created_at', 'desc')
+      ->paginate($perPage);
+
+    // Format the reviews data
+    $formattedReviews = $reviews->getCollection()->map(function ($review) {
+      return [
+        'id' => $review->id,
+        'rating' => $review->rating,
+        'comment' => $review->comment,
+        'is_verified' => $review->is_verified,
+        'created_at' => $review->created_at,
+        'student' => [
+          'id' => $review->student->id,
+          'name' => $review->student->user->name,
+          'first_name' => $review->student->user->first_name ?? null,
+          'last_name' => $review->student->user->last_name ?? null,
+        ],
+        'course' => $review->course ? [
+          'id' => $review->course->id,
+          'title' => $review->course->title,
+          'subject' => [
+            'id' => $review->course->subject->id,
+            'name' => $review->course->subject->name,
+          ]
+        ] : null,
+      ];
+    });
+
+    // Get review statistics
+    $statistics = [
+      'average_rating' => $teacher->getAverageRating(),
+      'total_reviews' => $teacher->getTotalReviews(),
+      'rating_distribution' => $teacher->getRatingDistribution(),
+      'verified_reviews_count' => $teacher->approvedReviews()->where('is_verified', true)->count(),
+    ];
+
+    return response()->json([
+      'reviews' => [
+        'data' => $formattedReviews,
+        'current_page' => $reviews->currentPage(),
+        'last_page' => $reviews->lastPage(),
+        'per_page' => $reviews->perPage(),
+        'total' => $reviews->total(),
+        'from' => $reviews->firstItem(),
+        'to' => $reviews->lastItem(),
+      ],
+      'statistics' => $statistics
     ]);
   }
 }

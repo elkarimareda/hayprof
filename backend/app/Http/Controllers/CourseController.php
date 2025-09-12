@@ -85,7 +85,7 @@ class CourseController extends Controller
       'subject_id' => $validated['subject'],
       'title' => $validated['title'],
       'description' => $validated['description'],
-      'proficiency_level' => $validated['proficiency_level'],
+      'proficiency_level' => $validated['proficiency_level'] ?? null,
       'price_per_student' => $validated['price_per_student'],
       'count_session' => $validated['count_session'],
       'duration_session' => $validated['duration_session'],
@@ -122,9 +122,9 @@ class CourseController extends Controller
         'id' => $course->id,
         'title' => $course->title,
         'subject' => $course->subject,
-        'proficiency_level' => $course->proficiency_level,
+        'proficiency_level' => $course->proficiency_level ?? null,
         'description' => $course->description,
-        'thumbnail' => $course->thumbnail,
+        'thumbnail' => $course->thumbnail_url ?? null,
         'price_per_student' => $course->price_per_student,
         'count_session' => $course->count_session,
         'duration_session' => $course->duration_session,
@@ -157,9 +157,9 @@ class CourseController extends Controller
           'id' => $course->id,
           'title' => $course->title,
           'subject' => $course->subject,
-          'proficiency_level' => $course->proficiency_level,
+          'proficiency_level' => $course->proficiency_level ?? null,
           'description' => $course->description,
-          'thumbnail' => $course->thumbnail,
+          'thumbnail' => $course->thumbnail_url ?? null,
           'price_per_student' => $course->price_per_student,
           'count_session' => $course->count_session,
           'duration_session' => $course->duration_session,
@@ -188,9 +188,9 @@ class CourseController extends Controller
           'id' => $course->id,
           'title' => $course->title,
           'subject' => $course->subject,
-          'proficiency_level' => $course->proficiency_level,
+          'proficiency_level' => $course->proficiency_level ?? null,
           'description' => $course->description,
-          'thumbnail' => $course->thumbnail,
+          'thumbnail' => $course->thumbnail_url ?? null,
           'price_per_student' => $course->price_per_student,
           'count_session' => $course->count_session,
           'duration_session' => $course->duration_session,
@@ -199,8 +199,8 @@ class CourseController extends Controller
           'schedules' => $course->schedules,
           'teacher' => [
             'id' => $course->teacher->id,
-            'name' => $course->teacher->user->first_name . ' ' . $course->teacher->user->last_name,
-            'email' => $course->teacher->user->email,
+            'name' => $course->teacher->user->name ?? 'Unknown',
+            'email' => $course->teacher->user->email ?? '',
           ],
           'is_active' => $course->is_active,
           'is_validated' => $course->is_validated,
@@ -250,6 +250,135 @@ class CourseController extends Controller
     ]);
   }
 
+  public function show(Request $request, $courseId)
+  {
+    // Find course by ID with all related data
+    $course = Course::with([
+      'subject',
+      'teacher.user',
+      'teacher.medias',
+      'teacher.reviews' => function($query) {
+        $query->approved()->latest()->take(5); // Get latest 5 reviews for preview
+      },
+      'teacher.reviews.student.user',
+      'schedules',
+      'medias',
+      'reviews' => function($query) {
+        $query->approved()->with('student.user')->latest();
+      }
+    ])->find($courseId);
+
+    if (!$course) {
+      return response()->json(['error' => 'Course not found'], 404);
+    }
+
+    // Get teacher profile photo
+    $teacherProfilePhoto = $course->teacher->medias()
+      ->where('media_purpose', 'profile_photo')
+      ->first();
+
+    // Get course thumbnail
+    $courseThumbnail = $course->medias()
+      ->where('media_purpose', 'course_thumbnail')
+      ->first();
+
+    // Calculate teacher statistics
+    $teacherStats = [
+      'average_rating' => $course->teacher->getAverageRating(),
+      'total_reviews' => $course->teacher->getTotalReviews(),
+      'total_courses' => $course->teacher->courses()->validated()->count(),
+    ];
+
+    // Format course reviews
+    $courseReviews = $course->reviews->map(function ($review) {
+      return [
+        'id' => $review->id,
+        'rating' => $review->rating ?? 0,
+        'comment' => $review->comment ?? '',
+        'is_verified' => $review->is_verified ?? false,
+        'created_at' => $review->created_at,
+        'student' => [
+          'id' => $review->student->id,
+          'name' => $review->student->user->name ?? 'Anonymous',
+        ],
+      ];
+    });
+
+    $response = [
+      'id' => $course->id,
+      'title' => $course->title,
+      'description' => $course->description,
+      'proficiency_level' => $course->proficiency_level ?? null,
+      'price_per_student' => $course->price_per_student,
+      'count_session' => $course->count_session,
+      'duration_session' => $course->duration_session,
+      'min_students' => $course->min_students,
+      'max_students' => $course->max_students,
+      'is_active' => $course->is_active,
+      'is_validated' => $course->is_validated,
+      'created_at' => $course->created_at,
+      'updated_at' => $course->updated_at,
+
+      // Subject information
+      'subject' => [
+        'id' => $course->subject->id,
+        'name' => $course->subject->name,
+        'code' => $course->subject->code,
+      ],
+
+      // Teacher information
+      'teacher' => [
+        'id' => $course->teacher->id,
+        'first_name' => $course->teacher->first_name,
+        'last_name' => $course->teacher->last_name,
+        'country' => $course->teacher->country,
+        'timezone' => $course->teacher->timezone,
+        'pricing' => $course->teacher->pricing,
+        'biography' => $course->teacher->biography,
+        'verified_teacher' => $course->teacher->verified_teacher,
+        'photo_url' => $teacherProfilePhoto ? $teacherProfilePhoto->url() : null,
+        'user' => [
+          'id' => $course->teacher->user->id,
+          'name' => $course->teacher->user->name,
+          'email' => $course->teacher->user->email,
+        ],
+        'statistics' => $teacherStats,
+        'recent_reviews' => $course->teacher->reviews->take(3)->map(function ($review) {
+          return [
+            'id' => $review->id,
+            'rating' => $review->rating ?? 0,
+            'comment' => $review->comment ?? '',
+            'created_at' => $review->created_at,
+            'student' => [
+              'name' => $review->student->user->name ?? 'Anonymous',
+            ],
+          ];
+        }),
+      ],
+
+      // Course schedules
+      'schedules' => $course->schedules->map(function ($schedule) {
+        return [
+          'id' => $schedule->id,
+          'datetime_scheduled' => $schedule->datetime_scheduled,
+          'time_of_session' => $schedule->time_of_session,
+        ];
+      }),
+
+      // Media
+      'thumbnail_url' => $courseThumbnail ? $courseThumbnail->url() : null,
+
+      // Course reviews
+      'reviews' => [
+        'data' => $courseReviews,
+        'total' => $courseReviews->count(),
+        'average_rating' => $courseReviews->avg('rating') ?: 0,
+      ],
+    ];
+
+    return response()->json($response);
+  }
+
   public function validated(Request $request)
   {
     $query = Course::validated()->with(['subject', 'teacher.user', 'medias']);
@@ -267,7 +396,7 @@ class CourseController extends Controller
           'name' => $course->subject->name,
           'code' => $course->subject->code,
         ],
-        'proficiency_level' => $course->proficiency_level,
+        'proficiency_level' => $course->proficiency_level ?? null,
         'description' => $course->description,
         'thumbnail_url' => $course->thumbnail_url,
         'price_per_student' => $course->price_per_student,

@@ -142,5 +142,26 @@
       "conversational": "Conversational",
       "basic": "Basic"
     }
+  },
+  "teachers": {
+    "find_your_teacher": "Find your teacher",
+    "results_one": "{{count}} teacher found",
+    "results_other": "{{count}} teachers found",
+    "filter": "Filter",
+    "filters": {
+      "price_range": "Price Range",
+      "proficiency_level": "Proficiency Level",
+      "language": "Language",
+      "availability": "Availability",
+      "clear_all": "Clear All"
+    },
+    "sort_by": "Sort by",
+    "sort_options": {
+      "relevance": "Relevance",
+      "rating": "Rating",
+      "price_low_to_high": "Price: Low to High",
+      "price_high_to_low": "Price: High to Low"
+    },
+    "no_teachers_found": "No teachers found. Please adjust your filters and try again."
   }
 }

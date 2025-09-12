@@ -31,12 +31,12 @@ class Student extends Model
     }
 
     // Check if student has reviewed a specific teacher
-    public function hasReviewedTeacher(int $teacherId, $lessonDate = null): bool
+    public function hasReviewedTeacher(int $teacherId, $courseId = null): bool
     {
         $query = $this->reviews()->where('teacher_id', $teacherId);
         
-        if ($lessonDate) {
-            $query->where('lesson_date', $lessonDate);
+        if ($courseId) {
+            $query->where('course_id', $courseId);
         }
         
         return $query->exists();

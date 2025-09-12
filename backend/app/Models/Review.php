@@ -14,7 +14,7 @@ class Review extends Model
         'rating',
         'comment',
         'is_verified',
-        'lesson_date',
+        'course_id',
         'is_approved'
     ];
 
@@ -22,7 +22,6 @@ class Review extends Model
         'rating' => 'integer',
         'is_verified' => 'boolean',
         'is_approved' => 'boolean',
-        'lesson_date' => 'datetime'
     ];
 
     // Relationships
@@ -34,6 +33,11 @@ class Review extends Model
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);
+    }
+
+    public function course(): BelongsTo
+    {
+        return $this->belongsTo(Course::class);
     }
 
     // Scopes
@@ -64,7 +68,7 @@ class Review extends Model
             'teacher_id' => 'required|exists:teachers,id',
             'rating' => 'required|integer|min:1|max:5',
             'comment' => 'nullable|string|max:1000',
-            'lesson_date' => 'nullable|date|before_or_equal:today'
+            'course_id' => 'nullable|exists:courses,id'
         ];
     }
 }

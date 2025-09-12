@@ -194,9 +194,8 @@ function TeachersListing() {
           {/* Results count */}
           <div className="mb-4">
             <p className="text-sm text-gray-600">
-              {t("teachers.results_count", {
-                count: teachers.length,
-                defaultValue: "{{count}} teachers found",
+              {t("teachers.results", {
+                count: teachers.length
               })}
             </p>
           </div>
