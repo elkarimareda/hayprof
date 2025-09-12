@@ -50,6 +50,7 @@
   "teacher": "Teacher",
   "register_title_student": "Register as a Student",
   "register_title_teacher": "Register as a Teacher",
+  "new_course": "Create a New Course",
   "descriptions": {
     "yourself": "Introduce yourself",
     "experience": "Teaching experience",
@@ -81,6 +82,7 @@
     }
   },
   "course": {
+    "no_courses": "No courses found.",
     "title": "Course Title",
     "subject": "Subject",
     "select_subject": "Select a subject",

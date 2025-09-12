@@ -322,9 +322,6 @@ function TeachersListing() {
                       >
                         {t("teachers.view_profile", "View Profile")}
                       </Button>
-                      <Button variant="outline" size="sm">
-                        {t("teachers.message", "Message")}
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>

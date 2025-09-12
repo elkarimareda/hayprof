@@ -66,6 +66,7 @@ export const createCourse = async (
   formData.append("duration_session", data.duration_session.toString());
   formData.append("min_students", data.min_students.toString());
   formData.append("max_students", data.max_students.toString());
+  formData.append("course_date", data.course_date);
 
   // Append schedule data
   console.log("Schedule data before sending:", data.schedule);
@@ -99,6 +100,14 @@ export const createCourse = async (
  */
 export const getCourses = async (): Promise<CoursesResponse> => {
   const response = await api.get<CoursesResponse>("/courses");
+  return response.data;
+};
+
+/**
+ * Get a single course by ID
+ */
+export const getCourse = async (courseId: string): Promise<Course> => {
+  const response = await api.get<Course>(`/courses/${courseId}`);
   return response.data;
 };
 

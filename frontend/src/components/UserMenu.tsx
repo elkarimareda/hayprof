@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
-import { LogOut, User } from "lucide-react";
+import { BookOpen, LogOut, User } from "lucide-react";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
@@ -78,6 +78,16 @@ function UserMenu() {
           <User className="mr-2 h-4 w-4" />
           <span>{t("profile")}</span>
         </DropdownMenuItem>
+
+        {user?.user_type === "teacher" && (
+          <DropdownMenuItem
+            onClick={() => router.navigate({ to: "/course" })}
+            className="px-3 py-2 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive transition-colors cursor-pointer"
+          >
+            <BookOpen className="mr-2 h-4 w-4" />
+            <span>{t("new_course")}</span>
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuSeparator className="bg-border" />
 

@@ -6,7 +6,7 @@ export const UserType = {
 export type UserType = (typeof UserType)[keyof typeof UserType];
 
 export interface User {
-  id: string;
+  id: number;
   name: string;
   email: string;
   onboarding_completed: boolean;

@@ -1,23 +1,48 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  MapPin,
-  Award,
   Star,
-  Calendar,
-  BookOpen,
   MessageCircle,
+  MapPin,
   Globe,
   CheckCircle,
+  BookOpen,
+  Edit,
+  Trash2,
+  Save,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/utils/request";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import ReviewForm from "@/components/FormReview";
+import { useAuth } from "@/hooks/useAuth";
+import type { Course } from "@/apis/courses";
 
 export const Route = createFileRoute("/_public/teacher/$id")({
   component: TeacherProfile,
@@ -45,11 +70,11 @@ interface Teacher {
     issued_date?: string;
     issuer?: string;
   }>;
+  courses: Course[];
   courses_count?: number;
   students_count?: number;
   rating?: number;
   total_reviews?: number;
-  subjects?: string[];
   languages?: Array<{
     id: number;
     name: string;
@@ -61,34 +86,20 @@ interface Teacher {
   response_time?: string;
 }
 
-interface Review {
-  id: number;
-  rating: number;
+export interface Review {
   comment: string;
+  course?: { title: string };
   created_at: string;
+  id: number;
+  is_verified: boolean;
+  rating: number;
   student: {
     id: number;
     name: string;
+    first_name: string;
+    last_name: string;
     photo_url?: string;
   };
-  course?: {
-    id: number;
-    title: string;
-  };
-}
-
-interface Course {
-  id: number;
-  title: string;
-  description: string;
-  duration: number;
-  level: string;
-  price: number;
-  students_count: number;
-  rating?: number;
-  total_reviews?: number;
-  subjects: string[];
-  created_at: string;
 }
 
 interface TeacherProfileData {
@@ -105,23 +116,54 @@ const getTeacherProfile = async (
   return response.data;
 };
 
+// API function to get teacher reviews
+const getTeacherReviews = async (
+  teacherId: string
+): Promise<{ reviews: { data: Review[] } }> => {
+  const response = await api.get<{ reviews: { data: Review[] } }>(
+    `/teachers/${teacherId}/reviews`
+  );
+  return response.data;
+};
+
+// API function to update review
+const updateReview = async (
+  reviewId: number,
+  reviewData: { rating: number; comment: string }
+): Promise<Review> => {
+  const response = await api.put<Review>(`/reviews/${reviewId}`, reviewData);
+  return response.data;
+};
+
+// API function to delete review
+const deleteReview = async (reviewId: number): Promise<void> => {
+  await api.delete(`/reviews/${reviewId}`);
+};
+
 function TeacherProfile() {
   const { id } = Route.useParams();
   const { t } = useTranslation();
+  const { user, isAuthenticated } = useAuth();
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+  const [editingReview, setEditingReview] = useState<Review | null>(null);
+  const [editRating, setEditRating] = useState<number>(0);
+  const [editComment, setEditComment] = useState<string>("");
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchTeacherProfile = async () => {
       try {
         setLoading(true);
         const data = await getTeacherProfile(id);
+        const dataReviews = await getTeacherReviews(id);
+
         setTeacher(data.profile);
-        setReviews(data.reviews);
-        setCourses(data.courses);
+        setReviews(dataReviews.reviews.data || []);
+        setCourses(data.profile.courses);
       } catch (error) {
         console.error("Failed to fetch teacher profile:", error);
         toast.error(t("errors.generic"));
@@ -166,10 +208,103 @@ function TeacherProfile() {
           />
         ))}
         <span className="ml-1 text-sm text-gray-600">
-          ({rating.toFixed(1)})
+          ({rating?.toFixed(1)})
         </span>
       </div>
     );
+  };
+
+  const handleReviewSubmitted = (newReview: Review) => {
+    setReviews((prev) => [newReview, ...prev]);
+
+    // Update teacher stats if available
+    if (teacher) {
+      setTeacher((prev) =>
+        prev
+          ? {
+              ...prev,
+              total_reviews: (prev.total_reviews || 0) + 1,
+              // Optionally recalculate rating
+              rating: prev.rating
+                ? (prev.rating * (prev.total_reviews || 0) + newReview.rating) /
+                  ((prev.total_reviews || 0) + 1)
+                : newReview.rating,
+            }
+          : null
+      );
+    }
+  };
+
+  const handleEditReview = (review: Review) => {
+    setEditingReview(review);
+    setEditRating(review.rating);
+    setEditComment(review.comment);
+  };
+
+  const handleUpdateReview = async () => {
+    if (!editingReview || editRating === 0 || !editComment.trim()) {
+      toast.error(t("review.fill_all_fields", "Please fill all fields"));
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const updatedReview = await updateReview(editingReview.id, {
+        rating: editRating,
+        comment: editComment.trim(),
+      });
+
+      // Update the review in the list
+      setReviews((prev) =>
+        prev.map((review) =>
+          review.id === editingReview.id
+            ? { ...review, ...updatedReview }
+            : review
+        )
+      );
+
+      toast.success(t("review.updated", "Review updated successfully"));
+      setEditingReview(null);
+      setEditRating(0);
+      setEditComment("");
+    } catch (error) {
+      console.error("Failed to update review:", error);
+      toast.error(t("review.update_error", "Failed to update review"));
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: number) => {
+    try {
+      await deleteReview(reviewId);
+
+      // Remove the review from the list
+      setReviews((prev) => prev.filter((review) => review.id !== reviewId));
+
+      // Update teacher stats
+      if (teacher) {
+        setTeacher((prev) =>
+          prev
+            ? {
+                ...prev,
+                total_reviews: Math.max((prev.total_reviews || 1) - 1, 0),
+              }
+            : null
+        );
+      }
+
+      toast.success(t("review.deleted", "Review deleted successfully"));
+    } catch (error) {
+      console.error("Failed to delete review:", error);
+      toast.error(t("review.delete_error", "Failed to delete review"));
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingReview(null);
+    setEditRating(0);
+    setEditComment("");
   };
 
   if (loading) {
@@ -283,17 +418,6 @@ function TeacherProfile() {
                   </div>
                 </div>
               </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
-                <Button size="lg" className="flex-1 sm:flex-none">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  {t("teacher.book_lesson", "Book a Lesson")}
-                </Button>
-                <Button variant="outline" size="lg">
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  {t("teacher.message", "Message")}
-                </Button>
-              </div>
             </div>
           </div>
         </CardHeader>
@@ -301,7 +425,7 @@ function TeacherProfile() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">
             {t("teacher.overview", "Overview")}
           </TabsTrigger>
@@ -310,9 +434,6 @@ function TeacherProfile() {
           </TabsTrigger>
           <TabsTrigger value="reviews">
             {t("teacher.reviews", "Reviews")}
-          </TabsTrigger>
-          <TabsTrigger value="credentials">
-            {t("teacher.credentials", "Credentials")}
           </TabsTrigger>
         </TabsList>
 
@@ -359,29 +480,6 @@ function TeacherProfile() {
                   </CardContent>
                 </Card>
               )}
-
-              {/* Subjects */}
-              {/* {teacher.subjects && teacher.subjects.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">
-                      {t("teacher.subjects", "Subjects")}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {teacher.subjects.map((subject, index) => (
-                        <Badge
-                          key={index}
-                          className="bg-blue-100 text-blue-800"
-                        >
-                          {subject}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )} */}
 
               {/* Teaching Info */}
               <Card>
@@ -443,11 +541,6 @@ function TeacherProfile() {
                     <CardTitle className="line-clamp-2">
                       {course.title}
                     </CardTitle>
-                    {course.rating && (
-                      <div className="flex items-center gap-2">
-                        {renderStars(course.rating)}
-                      </div>
-                    )}
                   </CardHeader>
                   <CardContent>
                     <p className="text-gray-600 text-sm line-clamp-3 mb-4">
@@ -457,43 +550,48 @@ function TeacherProfile() {
                     <div className="space-y-2 mb-4">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">
-                          {t("course.level", "Level")}:
+                          {t("course.subject", "Subject")}:
                         </span>
-                        <Badge variant="outline">{course.level}</Badge>
+                        <span>{course.subject.name}</span>
+                      </div>
+                      {course.proficiency_level && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">
+                            {t("course.level", "Level")}:
+                          </span>
+                          <Badge variant="outline">
+                            {t(
+                              `course.proficiency.${course.proficiency_level}`
+                            )}
+                          </Badge>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">
+                          {t("course.sessions", "Sessions")}:
+                        </span>
+                        <span>{course.count_session}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">
                           {t("course.duration", "Duration")}:
                         </span>
-                        <span>{course.duration} hours</span>
+                        <span>{course.duration_session}</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">
-                          {t("course.students", "Students")}:
-                        </span>
-                        <span>{course.students_count}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1 mb-4">
-                      {course.subjects.slice(0, 3).map((subject, index) => (
-                        <Badge
-                          key={index}
-                          variant="outline"
-                          className="text-xs"
-                        >
-                          {subject}
-                        </Badge>
-                      ))}
                     </div>
 
                     <div className="flex items-center justify-between">
                       <span className="text-lg font-bold text-green-600">
-                        {formatPrice(course.price)}
+                        {formatPrice(course.price_per_student || 0)}
                       </span>
-                      <Button size="sm">
-                        {t("course.view_details", "View Details")}
-                      </Button>
+                      <Link
+                        to="/course/$id"
+                        params={{ id: course.id.toString() }}
+                      >
+                        <Button size="sm">
+                          {t("course.view_details", "View Details")}
+                        </Button>
+                      </Link>
                     </div>
                   </CardContent>
                 </Card>
@@ -504,6 +602,44 @@ function TeacherProfile() {
 
         {/* Reviews Tab */}
         <TabsContent value="reviews" className="mt-6">
+          {/* Review Form */}
+          <div className="mb-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">
+                    {t("review.reviews_title", "Student Reviews")}
+                  </CardTitle>
+                  <ReviewForm
+                    teacherId={id}
+                    onReviewSubmitted={handleReviewSubmitted}
+                    hasReviewed={
+                      isAuthenticated &&
+                      (user?.user_type !== "student" ||
+                        reviews.some(
+                          (r) => r.student?.id === user?.profile?.id
+                        ))
+                    }
+                  />
+                </div>
+                {teacher?.rating && teacher?.total_reviews && (
+                  <div className="flex items-center gap-4 pt-2">
+                    <div className="flex items-center gap-2">
+                      {renderStars(teacher.rating)}
+                    </div>
+                    <span className="text-sm text-gray-600">
+                      {t("review.based_on_reviews", {
+                        count: teacher.total_reviews,
+                        defaultValue: "Based on {{count}} reviews",
+                      })}
+                    </span>
+                  </div>
+                )}
+              </CardHeader>
+            </Card>
+          </div>
+
+          {/* Reviews List */}
           {reviews?.length === 0 ? (
             <Card>
               <CardContent className="text-center py-12">
@@ -511,12 +647,21 @@ function TeacherProfile() {
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   {t("teacher.no_reviews", "No reviews yet")}
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 mb-4">
                   {t(
                     "teacher.no_reviews_message",
                     "This teacher hasn't received any reviews yet."
                   )}
                 </p>
+                <ReviewForm
+                  teacherId={id}
+                  onReviewSubmitted={handleReviewSubmitted}
+                  hasReviewed={
+                    isAuthenticated &&
+                    (user?.user_type !== "student" ||
+                      reviews.some((r) => r.student?.id === user?.profile?.id))
+                  }
+                />
               </CardContent>
             </Card>
           ) : (
@@ -526,18 +671,76 @@ function TeacherProfile() {
                   <CardContent className="pt-6">
                     <div className="flex items-start gap-4">
                       <Avatar>
-                        <AvatarImage src={review.student.photo_url} />
+                        <AvatarImage src={review.student?.photo_url} />
                         <AvatarFallback>
-                          {review.student.name.charAt(0).toUpperCase()}
+                          {review.student?.name.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
 
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium">{review.student.name}</h4>
-                          <span className="text-sm text-gray-500">
-                            {formatDate(review.created_at)}
-                          </span>
+                          <h4 className="font-medium">
+                            {review.student?.name}
+                          </h4>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-500">
+                              {formatDate(review.created_at)}
+                            </span>
+                            {/* Edit/Delete buttons for user's own review */}
+                            {isAuthenticated &&
+                              user?.profile.id === review.student?.id && (
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditReview(review)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>
+                                          {t(
+                                            "review.delete_title",
+                                            "Delete Review"
+                                          )}
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          {t(
+                                            "review.delete_description",
+                                            "Are you sure you want to delete this review? This action cannot be undone."
+                                          )}
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>
+                                          {t("common.cancel", "Cancel")}
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() =>
+                                            handleDeleteReview(review.id)
+                                          }
+                                          className="bg-red-600 hover:bg-red-700"
+                                        >
+                                          {t("common.delete", "Delete")}
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
+                              )}
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-2 mb-2">
@@ -559,66 +762,98 @@ function TeacherProfile() {
           )}
         </TabsContent>
 
-        {/* Credentials Tab */}
-        <TabsContent value="credentials" className="mt-6">
-          {!teacher.certifications || teacher.certifications.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-12">
-                <Award className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {t("teacher.no_credentials", "No credentials yet")}
-                </h3>
-                <p className="text-gray-600">
-                  {t(
-                    "teacher.no_credentials_message",
-                    "This teacher hasn't added any certifications yet."
+        {/* Edit Review Dialog */}
+        <Dialog
+          open={!!editingReview}
+          onOpenChange={(open) => !open && cancelEdit()}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {t("review.edit_review_title", "Edit Review")}
+              </DialogTitle>
+              <DialogDescription>
+                {t("review.edit_review_description", "Update your review")}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Rating Stars */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  {t("review.rating", "Rating")}
+                </label>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      className="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                      onClick={() => setEditRating(star)}
+                    >
+                      <Star
+                        className={`w-6 h-6 transition-colors ${
+                          star <= editRating
+                            ? "text-yellow-400 fill-current"
+                            : "text-gray-300 hover:text-yellow-200"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                  {editRating > 0 && (
+                    <span className="ml-2 text-sm text-gray-600">
+                      ({editRating} {editRating === 1 ? "star" : "stars"})
+                    </span>
                   )}
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {teacher.certifications.map((cert) => (
-                <Card key={cert.id}>
-                  <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <Award className="w-5 h-5 text-yellow-600" />
-                      <CardTitle className="text-lg">{cert.subject}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div>
-                        <span className="text-sm text-gray-600">
-                          {t("credential.certificate", "Certificate")}:
-                        </span>
-                        <p className="font-medium">{cert.certificate}</p>
-                      </div>
-                      {cert.issuer && (
-                        <div>
-                          <span className="text-sm text-gray-600">
-                            {t("credential.issuer", "Issuer")}:
-                          </span>
-                          <p className="font-medium">{cert.issuer}</p>
-                        </div>
-                      )}
-                      {cert.issued_date && (
-                        <div>
-                          <span className="text-sm text-gray-600">
-                            {t("credential.issued_date", "Issued")}:
-                          </span>
-                          <p className="font-medium">
-                            {formatDate(cert.issued_date)}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                </div>
+              </div>
+
+              {/* Comment */}
+              <div className="space-y-2">
+                <label htmlFor="edit-comment" className="text-sm font-medium">
+                  {t("review.comment", "Comment")}
+                </label>
+                <Textarea
+                  id="edit-comment"
+                  value={editComment}
+                  onChange={(e) => setEditComment(e.target.value)}
+                  placeholder={t(
+                    "review.comment_placeholder",
+                    "Share your thoughts about this teacher..."
+                  )}
+                  rows={4}
+                  maxLength={500}
+                />
+                <div className="text-right text-xs text-gray-500">
+                  {editComment.length}/500
+                </div>
+              </div>
             </div>
-          )}
-        </TabsContent>
+
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={cancelEdit}
+                disabled={isUpdating}
+                className="flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                {t("common.cancel", "Cancel")}
+              </Button>
+              <Button
+                onClick={handleUpdateReview}
+                disabled={isUpdating || editRating === 0 || !editComment.trim()}
+                className="flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                {isUpdating
+                  ? t("review.updating", "Updating...")
+                  : t("review.update", "Update Review")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </Tabs>
     </div>
   );
