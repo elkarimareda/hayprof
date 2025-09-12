@@ -1,13 +1,16 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BigBlueButtonController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\CourseEnrollmentController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\StudentController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -16,7 +19,32 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
+Route::prefix('bigbluebutton')
+    ->middleware(['throttle:30,1'])
+    ->group(function () {
+        Route::post('/meetings', [BigBlueButtonController::class, 'createMeeting']);
+        Route::post('/meetings/join', [BigBlueButtonController::class, 'joinMeeting']);
+        Route::get('/meetings/{meetingId}/info', [BigBlueButtonController::class, 'getMeetingInfo'])
+            ->whereAlphaNumeric('meetingId');
+        Route::delete('/meetings/{meetingId}', [BigBlueButtonController::class, 'endMeeting'])
+            ->whereAlphaNumeric('meetingId');
+        Route::get('/meetings', [BigBlueButtonController::class, 'getMeetings']);
+        Route::get('/meetings/{meetingId}/status', [BigBlueButtonController::class, 'isMeetingRunning'])
+            ->whereAlphaNumeric('meetingId');
+        Route::get('/recordings', [BigBlueButtonController::class, 'getRecordings']);
+        Route::delete('/recordings/{recordId}', [BigBlueButtonController::class, 'deleteRecordings'])
+            ->whereAlphaNumeric('recordId');
+    });
+
 Route::middleware('api')->group(function () {
+  Route::get('/test-bbb', function (App\Services\BigBlueButtonService $bbb) {
+    try {
+        $meetings = $bbb->getMeetings();
+        return response()->json(['status' => 'connected', 'data' => $meetings]);
+    } catch (Exception $e) {
+        return response()->json(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+});
   Route::post('/register', [AuthController::class, 'register']);
   Route::post('/login', [AuthController::class, 'login']);
   Route::post('/upload', [MediaController::class, 'upload']);
@@ -56,6 +84,38 @@ Route::middleware('api')->group(function () {
     Route::post('/reviews', [ReviewController::class, 'store']);
     Route::put('/reviews/{id}', [ReviewController::class, 'update']);
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
+
+    // BigBlueButton meeting routes for authenticated users
+    Route::prefix('courses/{course}')->group(function () {
+        Route::get('/meetings', function ($courseId, Request $request) {
+            $request->merge(['course_id' => $courseId]);
+            return app(BigBlueButtonController::class)->getMeetings($request);
+        });
+        Route::post('/meetings', function ($courseId, Request $request) {
+            $request->merge(['course_id' => $courseId]);
+            return app(BigBlueButtonController::class)->createMeeting($request);
+        });
+    });
+
+    Route::prefix('teachers/{teacher}')->group(function () {
+        Route::get('/meetings', function ($teacherId, Request $request) {
+            $request->merge(['teacher_id' => $teacherId]);
+            return app(BigBlueButtonController::class)->getMeetings($request);
+        });
+    });
+
+    Route::prefix('students/{student}')->group(function () {
+        Route::get('/meetings', function ($studentId, Request $request) {
+            $request->merge(['student_id' => $studentId]);
+            return app(BigBlueButtonController::class)->getMeetings($request);
+        });
+    });
+
+    // Course enrollment routes
+    Route::post('/courses/{course}/enroll', [CourseEnrollmentController::class, 'enroll']);
+    Route::delete('/courses/{course}/enroll', [CourseEnrollmentController::class, 'unenroll']);
+    Route::get('/my-enrollments', [CourseEnrollmentController::class, 'myEnrollments']);
+    Route::get('/courses/{course}/enrollments', [CourseEnrollmentController::class, 'courseEnrollments']);
 
     // Admin-only reference data management
     Route::middleware('admin')->group(function () {

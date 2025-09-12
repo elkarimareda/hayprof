@@ -3,6 +3,13 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use App\Services\BigBlueButtonService;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Event;
+use App\Events\CourseCreated;
+use App\Events\StudentEnrolled;
+use App\Listeners\CreateMeetingForCourse;
+use App\Listeners\UpdateMeetingForEnrollment;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -12,6 +19,9 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         //
+        $this->app->singleton(BigBlueButtonService::class, function ($app) {
+            return new BigBlueButtonService();
+        });
     }
 
     /**
@@ -19,6 +29,21 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Register event listeners
+        Event::listen(CourseCreated::class, CreateMeetingForCourse::class);
+        Event::listen(StudentEnrolled::class, UpdateMeetingForEnrollment::class);
+
+        // Gate definitions
+        Gate::define('create-meeting', function ($user) {
+            return $user->can('create meetings');
+        });
+
+        Gate::define('moderate-meeting', function ($user, $meetingId) {
+            return $user->can('moderate meetings') || $user->ownsMeeting($meetingId);
+        });
+
+        Gate::define('view-recordings', function ($user) {
+            return $user->can('view recordings');
+        });
     }
 }

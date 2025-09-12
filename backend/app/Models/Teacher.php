@@ -171,6 +171,11 @@ class Teacher extends Model
         return $this->morphMany(Media::class, 'mediable');
     }
 
+    public function bigBlueButtonMeetings(): HasMany
+    {
+        return $this->hasMany(BigBlueButtonMeeting::class);
+    }
+
     // Get specific media types
     public function profilePhoto()
     {

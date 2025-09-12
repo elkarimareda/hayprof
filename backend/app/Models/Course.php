@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
@@ -77,6 +78,31 @@ class Course extends Model
   public function validatedBy(): BelongsTo
   {
     return $this->belongsTo(User::class, 'validated_by');
+  }
+
+  public function bigBlueButtonMeetings(): HasMany
+  {
+    return $this->hasMany(BigBlueButtonMeeting::class);
+  }
+
+  public function enrollments(): HasMany
+  {
+    return $this->hasMany(CourseEnrollment::class);
+  }
+
+  public function students(): BelongsToMany
+  {
+    return $this->belongsToMany(Student::class, 'course_enrollments')
+      ->withPivot(['status', 'enrolled_at', 'confirmed_at', 'amount_paid'])
+      ->withTimestamps();
+  }
+
+  public function confirmedStudents(): BelongsToMany
+  {
+    return $this->belongsToMany(Student::class, 'course_enrollments')
+      ->wherePivot('status', 'confirmed')
+      ->withPivot(['enrolled_at', 'confirmed_at', 'amount_paid'])
+      ->withTimestamps();
   }
 
   // Scopes

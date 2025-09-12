@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Events\CourseCreated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -115,6 +116,9 @@ class CourseController extends Controller
 
     // Load relationships for response
     $course->load(['subject', 'schedules']);
+
+    // Fire the CourseCreated event to automatically create meetings
+    CourseCreated::dispatch($course);
 
     return response()->json([
       'message' => 'Course created successfully and is pending validation',
