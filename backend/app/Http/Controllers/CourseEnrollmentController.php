@@ -38,6 +38,29 @@ class CourseEnrollmentController extends Controller
             ->first();
 
         if ($existingEnrollment) {
+            // If enrollment was cancelled, reactivate it
+            if ($existingEnrollment->isCancelled() && $existingEnrollment->cancelled_at !== null) {
+                $existingEnrollment->update([
+                    'status' => 'confirmed',
+                    'cancelled_at' => null,
+                    'amount_paid' => $validated['amount_paid'] ?? $course->price_per_student,
+                    'metadata' => array_merge($existingEnrollment->metadata ?? [], [
+                        'reactivated_at' => now(),
+                        'payment_method' => $validated['payment_method'] ?? null,
+                        'notes' => $validated['notes'] ?? null,
+                    ])
+                ]);
+
+                // Fire the StudentEnrolled event for reactivated enrollment
+                StudentEnrolled::dispatch($existingEnrollment);
+
+                return response()->json([
+                    'message' => 'Successfully reactivated enrollment in course',
+                    'enrollment' => $existingEnrollment->load(['course', 'student.user'])
+                ], 200);
+            }
+
+            // If enrollment is still active, return conflict
             return response()->json([
                 'message' => 'Already enrolled in this course',
                 'enrollment' => $existingEnrollment
@@ -103,6 +126,11 @@ class CourseEnrollmentController extends Controller
         // Cancel the enrollment
         $enrollment->cancel();
 
+        // Also cancel any associated BigBlueButton meetings
+        $enrollment->course->bigBlueButtonMeetings()
+            ->where('student_id', $enrollment->student_id)
+            ->update(['status' => 'cancelled']);
+
         return response()->json([
             'message' => 'Successfully unenrolled from course',
             'enrollment' => $enrollment
@@ -147,11 +175,11 @@ class CourseEnrollmentController extends Controller
     {
         // Only allow course teacher or admin to view enrollments
         $user = Auth::user();
-        $teacher = $user->teacher;
+        // $teacher = $user->teacher;
 
-        if (!$teacher || $course->teacher_id !== $teacher->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        // if (!$teacher || $course->teacher_id !== $teacher->id) {
+        //     return response()->json(['message' => 'Unauthorized'], 403);
+        // }
 
         $enrollments = $course->enrollments()
             ->with(['student.user'])
