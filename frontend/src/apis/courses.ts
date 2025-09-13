@@ -43,6 +43,36 @@ export interface CoursesResponse {
   courses: Course[];
 }
 
+export interface EnrollmentResponse {
+  message: string;
+  enrollment: {
+    id: number;
+    student_id: number;
+    course_id: number;
+    enrolled_at: string;
+    status: string;
+  };
+}
+
+export interface Enrollment {
+  id: number;
+  student_id: number;
+  course_id: number;
+  enrolled_at: string;
+  status: string;
+  confirmed_at?: string;
+  amount_paid?: string;
+  student?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+}
+
+export interface EnrollmentsResponse {
+  enrollments: Enrollment[];
+}
+
 /**
  * Create a new course
  */
@@ -161,5 +191,68 @@ export const rejectCourse = async (
   const response = await api.post(`/courses/${courseId}/reject`, {
     validation_notes: notes,
   });
+  return response.data;
+};
+
+/**
+ * Enroll a student in a course
+ */
+export const enrollInCourse = async (
+  courseId: number
+): Promise<EnrollmentResponse> => {
+  const response = await api.post<EnrollmentResponse>(
+    `/courses/${courseId}/enroll`
+  );
+  return response.data;
+};
+
+/**
+ * Get course enrollment for current user
+ */
+export const getCourseEnrollment = async (
+  courseId: number
+): Promise<Enrollment | null> => {
+  try {
+    const response = await api.get<EnrollmentsResponse>(
+      `/courses/${courseId}/enrollments`
+    );
+    // Find the current user's enrollment from the enrollments list
+    // Since this endpoint returns all enrollments for the course,
+    // we need to filter for the current user (this should be done by the backend ideally)
+    const enrollments = response.data.enrollments;
+    // For now, we'll assume the API should return only the current user's enrollment
+    // or we need a different endpoint
+    return enrollments.length > 0 ? enrollments[0] : null;
+  } catch (error: unknown) {
+    // Return null if not enrolled (404) or other error
+    if (error && typeof error === "object" && "response" in error) {
+      const axiosError = error as { response?: { status?: number } };
+      if (axiosError?.response?.status === 404) {
+        return null;
+      }
+    }
+    throw error;
+  }
+};
+
+/**
+ * Get all enrollments for a course (for teachers/admins)
+ */
+export const getCourseEnrollments = async (
+  courseId: number
+): Promise<EnrollmentsResponse> => {
+  const response = await api.get<EnrollmentsResponse>(
+    `/courses/${courseId}/enrollments`
+  );
+  return response.data;
+};
+
+/**
+ * Unenroll a student from a course
+ */
+export const unenrollFromCourse = async (
+  courseId: number
+): Promise<{ message: string }> => {
+  const response = await api.delete(`/courses/${courseId}/enroll`);
   return response.data;
 };

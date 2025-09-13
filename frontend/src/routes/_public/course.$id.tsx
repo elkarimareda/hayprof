@@ -11,11 +11,21 @@ import {
   BookOpen,
   User,
   CheckCircle,
+  UserMinus,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getCourse, type Course } from "@/apis/courses";
+import {
+  getCourse,
+  enrollInCourse,
+  getCourseEnrollment,
+  getCourseEnrollments,
+  unenrollFromCourse,
+  type Course,
+  type Enrollment,
+} from "@/apis/courses";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/_public/course/$id")({
   component: CourseProfile,
@@ -24,8 +34,13 @@ export const Route = createFileRoute("/_public/course/$id")({
 function CourseProfile() {
   const { id } = Route.useParams();
   const { t } = useTranslation();
+  const { user, isAuthenticated } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
+  const [checkingEnrollment, setCheckingEnrollment] = useState(false);
+  const [enrolledStudentsCount, setEnrolledStudentsCount] = useState<number>(0);
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -41,8 +56,39 @@ function CourseProfile() {
       }
     };
 
+    const checkEnrollment = async () => {
+      if (isAuthenticated && user?.user_type === "student") {
+        try {
+          setCheckingEnrollment(true);
+          const enrollmentData = await getCourseEnrollment(parseInt(id));
+          setEnrollment(enrollmentData || null);
+        } catch (error) {
+          console.error("Failed to check enrollment:", error);
+          // Don't show error to user as this is just checking enrollment status
+        } finally {
+          setCheckingEnrollment(false);
+        }
+      }
+    };
+
+    const fetchEnrollmentCount = async () => {
+      try {
+        const enrollmentsData = await getCourseEnrollments(parseInt(id));
+        // Only count confirmed enrollments, not cancelled ones
+        const confirmedEnrollments = enrollmentsData.enrollments.filter(
+          (enrollment) => enrollment.status === "confirmed"
+        );
+        setEnrolledStudentsCount(confirmedEnrollments.length);
+      } catch (error) {
+        console.error("Failed to fetch enrollment count:", error);
+        // Don't show error to user, just keep count at 0
+      }
+    };
+
     fetchCourse();
-  }, [id, t]);
+    checkEnrollment();
+    fetchEnrollmentCount();
+  }, [id, t, isAuthenticated, user]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -77,6 +123,68 @@ function CourseProfile() {
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  const handleEnrollment = async () => {
+    if (!isAuthenticated) {
+      toast.error(
+        t("course.login_required", "Please login to enroll in courses")
+      );
+      return;
+    }
+
+    if (user?.user_type !== "student") {
+      toast.error(
+        t("course.student_only", "Only students can enroll in courses")
+      );
+      return;
+    }
+
+    try {
+      setEnrolling(true);
+      const result = await enrollInCourse(parseInt(id));
+      setEnrollment(result.enrollment);
+      setEnrolledStudentsCount((prev) => prev + 1);
+      toast.success(
+        t("course.enrollment_success", "Successfully enrolled in course!")
+      );
+    } catch (error) {
+      console.error("Failed to enroll in course:", error);
+      toast.error(t("course.enrollment_error", "Failed to enroll in course"));
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  const handleUnenrollment = async () => {
+    if (!enrollment) return;
+
+    try {
+      setEnrolling(true);
+      await unenrollFromCourse(parseInt(id));
+      setEnrollment(null);
+      setEnrolledStudentsCount((prev) => Math.max(0, prev - 1));
+      toast.success(
+        t("course.unenroll_success", "Successfully unenrolled from course")
+      );
+    } catch (error) {
+      console.error("Failed to unenroll from course:", error);
+      toast.error(t("course.unenroll_error", "Failed to unenroll from course"));
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  const isEnrolled = !!enrollment && enrollment.status !== "cancelled";
+  const isCancelled = !!enrollment && enrollment.status === "cancelled";
+  const canEnroll =
+    isAuthenticated &&
+    user?.user_type === "student" &&
+    (!isEnrolled || isCancelled);
+  const canUnenroll =
+    isAuthenticated &&
+    user?.user_type === "student" &&
+    isEnrolled &&
+    enrollment?.status === "confirmed";
 
   if (loading) {
     return (
@@ -154,6 +262,18 @@ function CourseProfile() {
                         {t("course.validated", "Validated")}
                       </Badge>
                     )}
+                    {isEnrolled && (
+                      <Badge className="bg-purple-100 text-purple-800">
+                        <Users className="w-3 h-3 mr-1" />
+                        {t("course.enrolled", "Enrolled")}
+                      </Badge>
+                    )}
+                    {isCancelled && (
+                      <Badge className="bg-red-100 text-red-800">
+                        <UserMinus className="w-3 h-3 mr-1" />
+                        {t("course.cancelled", "Cancelled")}
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
@@ -198,21 +318,81 @@ function CourseProfile() {
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">
-                    {course.schedules.length}
+                    {enrolledStudentsCount}
                   </div>
                   <div className="text-sm text-gray-600">
-                    {t("course.schedules", "Schedules")}
+                    {t("course.enrolled_students", "Enrolled")}
                   </div>
                 </div>
               </div>
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button size="lg" className="flex-1 sm:flex-none">
-                  <Users className="w-4 h-4 mr-2" />
-                  {t("course.enroll", "Enroll Now")}
-                </Button>
+                {canEnroll && (
+                  <Button
+                    size="lg"
+                    className="flex-1 sm:flex-none"
+                    onClick={handleEnrollment}
+                    disabled={enrolling || checkingEnrollment}
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    {enrolling
+                      ? t("course.enrolling", "Enrolling...")
+                      : isCancelled
+                        ? t("course.re_enroll", "Re-enroll")
+                        : t("course.enroll", "Enroll Now")}
+                  </Button>
+                )}
+
+                {canUnenroll && (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="flex-1 sm:flex-none text-red-600 border-red-600 hover:bg-red-50"
+                    onClick={handleUnenrollment}
+                    disabled={enrolling || checkingEnrollment}
+                  >
+                    <UserMinus className="w-4 h-4 mr-2" />
+                    {enrolling
+                      ? t("course.unenrolling", "Unenrolling...")
+                      : t("course.unenroll", "Unenroll")}
+                  </Button>
+                )}
               </div>
+
+              {/* Enrollment Status Message */}
+              {!isAuthenticated && (
+                <p className="text-sm text-gray-600 mt-2">
+                  {t(
+                    "course.login_to_enroll",
+                    "Please login as a student to enroll in this course"
+                  )}
+                </p>
+              )}
+              {isAuthenticated && user?.user_type !== "student" && (
+                <p className="text-sm text-gray-600 mt-2">
+                  {t(
+                    "course.student_enrollment_only",
+                    "Only students can enroll in courses"
+                  )}
+                </p>
+              )}
+              {isEnrolled && (
+                <p className="text-sm text-green-600 mt-2">
+                  {t(
+                    "course.enrollment_confirmed",
+                    "You are enrolled in this course"
+                  )}
+                </p>
+              )}
+              {isCancelled && (
+                <p className="text-sm text-red-600 mt-2">
+                  {t(
+                    "course.enrollment_cancelled",
+                    "Your enrollment was cancelled. You can enroll again if you wish."
+                  )}
+                </p>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -428,21 +608,64 @@ function CourseProfile() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">
-                    {t("course.min_students", "Minimum")}:
+                    {t("course.minimum_students", "Minimum")}:
                   </span>
                   <span className="font-medium">{course.min_students}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">
-                    {t("course.max_students", "Maximum")}:
+                    {t("course.maximum_students", "Maximum")}:
                   </span>
                   <span className="font-medium">{course.max_students}</span>
                 </div>
                 <div className="pt-2 border-t">
-                  <Button className="w-full">
-                    <Users className="w-4 h-4 mr-2" />
-                    {t("course.enroll_now", "Enroll Now")}
-                  </Button>
+                  {canEnroll && (
+                    <Button
+                      className="w-full"
+                      onClick={handleEnrollment}
+                      disabled={enrolling || checkingEnrollment}
+                    >
+                      <Users className="w-4 h-4 mr-2" />
+                      {enrolling
+                        ? t("course.enrolling", "Enrolling...")
+                        : isCancelled
+                          ? t("course.re_enroll", "Re-enroll")
+                          : t("course.enroll_now", "Enroll Now")}
+                    </Button>
+                  )}
+
+                  {canUnenroll && (
+                    <Button
+                      variant="outline"
+                      className="w-full text-red-600 border-red-600 hover:bg-red-50"
+                      onClick={handleUnenrollment}
+                      disabled={enrolling || checkingEnrollment}
+                    >
+                      <UserMinus className="w-4 h-4 mr-2" />
+                      {enrolling
+                        ? t("course.unenrolling", "Unenrolling...")
+                        : t("course.unenroll", "Unenroll")}
+                    </Button>
+                  )}
+
+                  {!canEnroll && !canUnenroll && (
+                    <div className="text-center text-gray-600 text-sm">
+                      {!isAuthenticated
+                        ? t(
+                            "course.login_to_enroll",
+                            "Please login as a student to enroll"
+                          )
+                        : user?.user_type !== "student"
+                          ? t(
+                              "course.student_enrollment_only",
+                              "Only students can enroll"
+                            )
+                          : t(
+                              "course.enrollment_status_unknown",
+                              "Enrollment status loading..."
+                            )}
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

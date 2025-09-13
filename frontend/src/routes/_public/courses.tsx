@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { getValidatedCourses, type Course } from "@/apis/courses";
@@ -253,9 +253,14 @@ function CoursesListing() {
                     </div>
 
                     {/* Action button */}
-                    <Button className="w-full">
-                      {t("courses.view_details", "View Details")}
-                    </Button>
+                    <Link
+                      to="/course/$id"
+                      params={{ id: course.id.toString() }}
+                    >
+                      <Button className="w-full">
+                        {t("courses.view_details", "View Details")}
+                      </Button>
+                    </Link>
                   </CardContent>
                 </Card>
               ))}
