@@ -24,6 +24,7 @@ import { Route as PublicAuthLoginRouteImport } from './routes/_public/_auth/logi
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/_app/profile'
 import { Route as AuthenticatedAppOnboardingRouteImport } from './routes/_authenticated/_app/onboarding'
 import { Route as AuthenticatedAppCourseRouteImport } from './routes/_authenticated/_app/course'
+import { Route as PublicAuthAuthCallbackRouteImport } from './routes/_public/_auth/auth/callback'
 
 const PublicRoute = PublicRouteImport.update({
   id: '/_public',
@@ -98,6 +99,11 @@ const AuthenticatedAppCourseRoute = AuthenticatedAppCourseRouteImport.update({
   path: '/course',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const PublicAuthAuthCallbackRoute = PublicAuthAuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => PublicAuthRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/courses': typeof PublicCoursesRoute
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/course/$id': typeof PublicCourseIdRoute
   '/teacher/$id': typeof PublicTeacherIdRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
+  '/auth/callback': typeof PublicAuthAuthCallbackRoute
 }
 export interface FileRoutesByTo {
   '/courses': typeof PublicCoursesRoute
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/course/$id': typeof PublicCourseIdRoute
   '/teacher/$id': typeof PublicTeacherIdRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
+  '/auth/callback': typeof PublicAuthAuthCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/_public/course/$id': typeof PublicCourseIdRoute
   '/_public/teacher/$id': typeof PublicTeacherIdRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
+  '/_public/_auth/auth/callback': typeof PublicAuthAuthCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
     | '/course/$id'
     | '/teacher/$id'
     | '/dashboard'
+    | '/auth/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/courses'
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/course/$id'
     | '/teacher/$id'
     | '/dashboard'
+    | '/auth/callback'
   id:
     | '__root__'
     | '/_authenticated'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/_public/course/$id'
     | '/_public/teacher/$id'
     | '/_authenticated/dashboard/'
+    | '/_public/_auth/auth/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -301,6 +313,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppCourseRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_public/_auth/auth/callback': {
+      id: '/_public/_auth/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof PublicAuthAuthCallbackRouteImport
+      parentRoute: typeof PublicAuthRoute
+    }
   }
 }
 
@@ -336,11 +355,13 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 interface PublicAuthRouteChildren {
   PublicAuthLoginRoute: typeof PublicAuthLoginRoute
   PublicAuthRegisterRoute: typeof PublicAuthRegisterRoute
+  PublicAuthAuthCallbackRoute: typeof PublicAuthAuthCallbackRoute
 }
 
 const PublicAuthRouteChildren: PublicAuthRouteChildren = {
   PublicAuthLoginRoute: PublicAuthLoginRoute,
   PublicAuthRegisterRoute: PublicAuthRegisterRoute,
+  PublicAuthAuthCallbackRoute: PublicAuthAuthCallbackRoute,
 }
 
 const PublicAuthRouteWithChildren = PublicAuthRoute._addFileChildren(

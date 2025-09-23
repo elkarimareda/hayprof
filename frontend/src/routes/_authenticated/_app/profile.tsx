@@ -17,11 +17,25 @@ import {
   Mail,
   Phone,
   MessageCircle,
+  Link as LinkIcon,
+  Shield,
 } from "lucide-react";
+import { FaGoogle, FaFacebook } from "react-icons/fa";
 import api from "@/utils/request";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserType } from "@/Models/Auth";
+import {
+  linkProvider,
+  unlinkProvider,
+  type SocialAccount,
+  type SocialProvider,
+} from "@/apis/social";
+import { useAuth } from "@/hooks/useAuth";
+import z from "zod";
+import { format, parse } from "date-fns";
+import { useTranslation } from "react-i18next";
+import type { CourseSchedule } from "@/apis/courses";
 
 // Simple Badge component
 // const Badge = ({
@@ -83,13 +97,6 @@ interface TimeSlot {
   end_time: string;
 }
 
-interface CourseSchedule {
-  id: number;
-  day_of_week: string;
-  start_time: string;
-  end_time: string;
-}
-
 interface Course {
   id: number;
   title: string;
@@ -97,18 +104,28 @@ interface Course {
     id: number;
     name: string;
     code: string;
+    description?: string;
+    is_active?: boolean;
+    created_at?: string;
+    updated_at?: string;
   };
   proficiency_level?: string;
   description: string;
-  thumbnail_url?: string;
-  price_per_student: number;
-  number_of_hours: number;
+  thumbnail?: string;
+  price_per_student: string;
+  count_session: number;
+  duration_session: string;
   min_students: number;
   max_students: number;
   schedules: CourseSchedule[];
   is_active: boolean;
   is_validated: boolean;
   created_at: string;
+  teacher: {
+    id: number;
+    first_name: string;
+    last_name: string;
+  };
 }
 
 interface Language {
@@ -161,6 +178,16 @@ interface StudentProfile {
   languages?: Language[];
 }
 
+interface Enrollment {
+  id: number;
+  student_id: number;
+  course_id: number;
+  enrolled_at: string;
+  status: "confirmed" | "pending" | "cancelled" | "completed";
+  progress?: number;
+  course: Course;
+}
+
 interface ProfileData {
   id: number;
   name: string;
@@ -169,6 +196,14 @@ interface ProfileData {
   user_type: string;
   profile: TeacherProfile | StudentProfile;
 }
+
+const searchSchema = z.object({
+  action: z.enum(["link"]).optional(),
+  provider: z.enum(["google", "facebook", "twitter", "github"]).optional(),
+  status: z.enum(["success", "error"]).optional(),
+  message: z.string().optional(),
+  error: z.string().optional(),
+});
 
 export const Route = createFileRoute("/_authenticated/_app/profile")({
   loader: async ({ context }) => {
@@ -180,11 +215,88 @@ export const Route = createFileRoute("/_authenticated/_app/profile")({
     return response.data;
   },
   component: RouteComponent,
+  validateSearch: searchSchema,
 });
 
 function RouteComponent() {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const searchParams = Route.useSearch();
   const profileData: ProfileData = Route.useLoaderData();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(
+    searchParams.action === "link" ? "social" : "overview"
+  );
+  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(
+    user?.social_accounts || []
+  );
+  const [loadingSocial, setLoadingSocial] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [loadingEnrollments, setLoadingEnrollments] = useState(false);
+
+  // Helper function to get provider icon
+  const getProviderIcon = (provider: string) => {
+    switch (provider.toLowerCase()) {
+      case "google":
+        return <FaGoogle className="w-5 h-5 text-red-500" />;
+      case "facebook":
+        return <FaFacebook className="w-5 h-5 text-blue-600" />;
+      default:
+        return <LinkIcon className="w-5 h-5 text-gray-500" />;
+    }
+  };
+
+  // Handle linking a social account
+  const handleLinkAccount = async (provider: SocialProvider) => {
+    try {
+      setLoadingSocial((prev) => ({ ...prev, [provider]: true }));
+      const response = await linkProvider(provider);
+      setSocialAccounts(response.user.social_accounts || []);
+    } catch (error) {
+      console.error(`Failed to link ${provider} account:`, error);
+    } finally {
+      setLoadingSocial((prev) => ({ ...prev, [provider]: false }));
+    }
+  };
+
+  // Handle unlinking a social account
+  const handleUnlinkAccount = async (provider: SocialProvider) => {
+    try {
+      setLoadingSocial((prev) => ({ ...prev, [provider]: true }));
+      const response = await unlinkProvider(provider);
+      setSocialAccounts(response.user.social_accounts || []);
+    } catch (error) {
+      console.error(`Failed to unlink ${provider} account:`, error);
+    } finally {
+      setLoadingSocial((prev) => ({ ...prev, [provider]: false }));
+    }
+  };
+
+  // Check if a provider is linked
+  const isProviderLinked = (provider: string) => {
+    return socialAccounts.some((account) => account.provider === provider);
+  };
+
+  // Load enrollments on component mount for students
+  useEffect(() => {
+    const loadEnrollments = async () => {
+      if (profileData.user_type !== UserType.student) return;
+
+      try {
+        setLoadingEnrollments(true);
+        const response = await api.get("/my-enrollments");
+        setEnrollments(response.data.enrollments || []);
+      } catch (error) {
+        console.error("Failed to fetch enrollments:", error);
+        setEnrollments([]);
+      } finally {
+        setLoadingEnrollments(false);
+      }
+    };
+
+    loadEnrollments();
+  }, [profileData.user_type]);
 
   // Type guard to check if profile is a teacher profile
   const isTeacher = (
@@ -202,6 +314,10 @@ function RouteComponent() {
 
   const sidebarItems = [
     { id: "overview", label: "Overview", icon: User },
+    { id: "social", label: "Linked Accounts", icon: Shield },
+    ...(isStudent(profileData.profile)
+      ? [{ id: "enrollments", label: "My Enrollments", icon: BookOpen }]
+      : []),
     ...(isTeacher(profileData.profile)
       ? [
           { id: "certifications", label: "Certifications", icon: Award },
@@ -226,18 +342,30 @@ function RouteComponent() {
   ];
 
   const formatTime = (time: string) => {
-    return new Date(`2000-01-01T${time}`).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    // Parse time string (e.g., "14:30:00") and format to 12-hour format
+    const parsedTime = parse(time, "HH:mm:ss", new Date());
+    return format(parsedTime, "h:mm a");
   };
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: number | string) => {
+    const numPrice = typeof price === "string" ? parseFloat(price) : price;
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-    }).format(price);
+    }).format(numPrice);
+  };
+
+  // Helper function to safely format dates
+  const safeFormatDate = (dateString: string, formatStr: string) => {
+    try {
+      if (!dateString) return "Invalid date";
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Invalid date";
+      return format(date, formatStr);
+    } catch (error) {
+      console.error("Date formatting error:", error);
+      return "Invalid date";
+    }
   };
 
   const getProficiencyColor = (level?: string) => {
@@ -758,9 +886,9 @@ function RouteComponent() {
                           {getValidationBadge(course)}
                         </div>
                       </div>
-                      {course.thumbnail_url && (
+                      {course.thumbnail && (
                         <img
-                          src={course.thumbnail_url}
+                          src={course.thumbnail}
                           alt={course.title}
                           className="w-20 h-20 object-cover rounded-lg ml-4"
                         />
@@ -804,11 +932,19 @@ function RouteComponent() {
                             className="flex items-center text-sm bg-gray-50 p-2 rounded"
                           >
                             <Calendar className="w-4 h-4 mr-2" />
-                            <span className="capitalize font-medium mr-2">
-                              {schedule.day_of_week}:
+                            <span className="font-medium mr-2">
+                              {safeFormatDate(
+                                schedule.datetime_scheduled,
+                                "EEE, MMM d, yyyy"
+                              )}
+                              :
                             </span>
                             <span>
-                              {schedule.start_time} - {schedule.end_time}
+                              {safeFormatDate(
+                                schedule.datetime_scheduled,
+                                "h:mm a"
+                              )}
+                              ({schedule.time_of_session} min)
                             </span>
                           </div>
                         ))}
@@ -958,10 +1094,322 @@ function RouteComponent() {
     </div>
   );
 
+  const renderEnrollments = () => {
+    if (loadingEnrollments) {
+      return (
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold">My Enrollments</h2>
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-gray-600">Loading enrollments...</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">My Enrollments</h2>
+          <p className="text-gray-600">
+            View and manage your course enrollments
+          </p>
+        </div>
+
+        {enrollments.length > 0 ? (
+          <div className="grid gap-6">
+            {enrollments.map((enrollment) => (
+              <Card
+                key={enrollment.id}
+                className="hover:shadow-md transition-shadow"
+              >
+                <CardContent className="p-6">
+                  <div className="flex flex-col md:flex-row gap-6">
+                    {/* Course Thumbnail */}
+                    <div className="w-full md:w-48 h-32 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                      {enrollment.course.thumbnail ? (
+                        <img
+                          src={enrollment.course.thumbnail}
+                          alt={enrollment.course.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                          <BookOpen className="w-8 h-8 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Course Details */}
+                    <div className="flex-1 space-y-4">
+                      <div>
+                        <h3 className="text-xl font-semibold mb-2">
+                          {enrollment.course.title}
+                        </h3>
+                        <p className="text-gray-600 text-sm mb-2">
+                          {enrollment.course.description}
+                        </p>
+                        <div className="flex flex-wrap gap-2 text-sm text-gray-500">
+                          <Badge variant="outline">
+                            {enrollment.course.subject.name}
+                          </Badge>
+                          <span>•</span>
+                          <span>
+                            {enrollment.course.count_session} sessions
+                          </span>
+                          <span>•</span>
+                          <span>
+                            {enrollment.course.duration_session}h each
+                          </span>
+                          <span>•</span>
+                          <span>${enrollment.course.price_per_student}</span>
+                        </div>
+                      </div>
+
+                      {/* Teacher Info */}
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-8 h-8">
+                          <AvatarFallback>
+                            {enrollment.course.teacher.first_name[0]}
+                            {enrollment.course.teacher.last_name[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm text-gray-600">
+                          {t("course.prof")}:{" "}
+                          {enrollment.course.teacher.first_name}{" "}
+                          {enrollment.course.teacher.last_name}
+                        </span>
+                      </div>
+
+                      {/* Enrollment Details */}
+                      <div className="flex flex-wrap items-center gap-4 pt-2">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm text-gray-600">
+                            Enrolled:{" "}
+                            {safeFormatDate(
+                              enrollment.enrolled_at,
+                              "MMM d, yyyy"
+                            )}
+                          </span>
+                        </div>
+
+                        {/* Status Badge */}
+                        <Badge
+                          variant={
+                            enrollment.status === "confirmed"
+                              ? "default"
+                              : "outline"
+                          }
+                          className={
+                            enrollment.status === "confirmed"
+                              ? "bg-green-100 text-green-800"
+                              : enrollment.status === "completed"
+                                ? "bg-blue-100 text-blue-800"
+                                : enrollment.status === "cancelled"
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-yellow-100 text-yellow-800"
+                          }
+                        >
+                          {enrollment.status.charAt(0).toUpperCase() +
+                            enrollment.status.slice(1)}
+                        </Badge>
+
+                        {/* Progress if available */}
+                        {enrollment.progress !== undefined && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">
+                              Progress:
+                            </span>
+                            <div className="w-20 bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-blue-600 h-2 rounded-full"
+                                style={{ width: `${enrollment.progress}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm text-gray-600">
+                              {enrollment.progress}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Schedule if available */}
+                      {enrollment.course.schedules?.length > 0 && (
+                        <div className="pt-2">
+                          <p className="text-sm font-medium text-gray-700 mb-1">
+                            {t("course.schedule")}:
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {enrollment.course.schedules.map(
+                              (schedule, index) => (
+                                <Badge
+                                  key={index}
+                                  variant="outline"
+                                  className="text-xs"
+                                >
+                                  {safeFormatDate(
+                                    schedule.datetime_scheduled,
+                                    "MMM d, yyyy"
+                                  )}{" "}
+                                  -{" "}
+                                  {safeFormatDate(
+                                    schedule.datetime_scheduled,
+                                    "h:mm a"
+                                  )}
+                                </Badge>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-2">No enrollments found</p>
+              <p className="text-sm text-gray-500">
+                You haven't enrolled in any courses yet. Browse our course
+                catalog to get started!
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  };
+
+  const renderSocialAccounts = () => {
+    const supportedProviders: { name: SocialProvider; label: string }[] = [
+      { name: "google", label: "Google" },
+      { name: "facebook", label: "Facebook" },
+    ];
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Linked Accounts</h2>
+          <p className="text-gray-600">
+            Connect your social accounts for easier sign-in and enhanced
+            security.
+          </p>
+        </div>
+
+        <div className="grid gap-4">
+          {supportedProviders.map((provider) => {
+            const isLinked = isProviderLinked(provider.name);
+            const linkedAccount = socialAccounts.find(
+              (account) => account.provider === provider.name
+            );
+            const error =
+              searchParams.status === "error" &&
+              searchParams.provider === provider.name &&
+              searchParams.action === "link" &&
+              `${searchParams.message} ${searchParams.error}`;
+
+            return (
+              <Card
+                key={provider.name}
+                className="hover:shadow-md transition-shadow"
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      {getProviderIcon(provider.name)}
+                      <div>
+                        <h3 className="font-semibold text-lg">
+                          {provider.label}
+                        </h3>
+                        {isLinked && linkedAccount ? (
+                          <p className="text-sm text-gray-600">
+                            Connected as {linkedAccount.provider_email}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-gray-600">Not connected</p>
+                        )}
+                        {error && <div className="text-red-500">{error}</div>}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {isLinked ? (
+                        <>
+                          <Badge
+                            variant="default"
+                            className="bg-green-100 text-green-800"
+                          >
+                            Connected
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUnlinkAccount(provider.name)}
+                            disabled={loadingSocial[provider.name]}
+                          >
+                            {loadingSocial[provider.name]
+                              ? "Unlinking..."
+                              : "Unlink"}
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleLinkAccount(provider.name)}
+                          disabled={loadingSocial[provider.name]}
+                        >
+                          {loadingSocial[provider.name]
+                            ? "Linking..."
+                            : "Link Account"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {socialAccounts.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="w-5 h-5" />
+                Security Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm text-gray-600">
+                <p>
+                  • You have {socialAccounts.length} account
+                  {socialAccounts.length !== 1 ? "s" : ""} linked
+                </p>
+                <p>• Linked accounts can be used for faster sign-in</p>
+                <p>• You can unlink accounts at any time</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case "overview":
         return renderOverview();
+      case "social":
+        return renderSocialAccounts();
+      case "enrollments":
+        return renderEnrollments();
       case "certifications":
         return renderCertifications();
       case "education":

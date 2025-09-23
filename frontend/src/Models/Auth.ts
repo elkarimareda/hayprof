@@ -1,3 +1,5 @@
+import type { SocialAccount } from "@/apis/social";
+
 export const UserType = {
   student: "student",
   teacher: "teacher",
@@ -11,6 +13,8 @@ export interface User {
   email: string;
   onboarding_completed: boolean;
   user_type: UserType;
+  social_accounts: SocialAccount[];
+  avatar?: string | null;
   profile: {
     photo_url: string | null;
     id: number;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,7 @@ import {
 import { Plus, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/utils/request";
-import type { Review } from "@/routes/_public/teacher.$id";
+import type { Review } from "@/Models/Review";
 
 interface ReviewFormData {
   rating: number;
@@ -35,22 +35,50 @@ const submitReview = async (
   return response.data;
 };
 
+// API function to update review
+const updateReview = async (
+  reviewId: number,
+  reviewData: Omit<ReviewFormData, "course_id">
+): Promise<Review> => {
+  const response = await api.put<Review>(`/reviews/${reviewId}`, reviewData);
+  return response.data;
+};
+
 // Review Form Component
 export default function ReviewForm({
   teacherId,
   onReviewSubmitted,
   hasReviewed,
+  editingReview,
+  onEditComplete,
+  triggerButton,
 }: {
   teacherId: string;
   onReviewSubmitted: (review: Review) => void;
   hasReviewed: boolean;
+  editingReview?: Review | null;
+  onEditComplete?: () => void;
+  triggerButton?: React.ReactNode;
 }) {
   const { t } = useTranslation();
-  const [rating, setRating] = useState<number>(0);
-  const [comment, setComment] = useState<string>("");
+  const [rating, setRating] = useState<number>(editingReview?.rating || 0);
+  const [comment, setComment] = useState<string>(editingReview?.comment || "");
   const [hoveredRating, setHoveredRating] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [isOpen, setIsOpen] = useState<boolean>(!!editingReview);
+
+  const isEditMode = !!editingReview;
+
+  // Update form when editingReview changes
+  useEffect(() => {
+    if (editingReview) {
+      setRating(editingReview.rating);
+      setComment(editingReview.comment);
+      setIsOpen(true);
+    } else {
+      setIsOpen(false);
+    }
+  }, [editingReview]);
 
   const handleStarClick = (starRating: number) => {
     setRating(starRating);
@@ -75,13 +103,31 @@ export default function ReviewForm({
 
     setIsSubmitting(true);
     try {
-      const newReview = await submitReview(teacherId, {
-        rating,
-        comment: comment.trim(),
-      });
+      if (isEditMode && editingReview) {
+        // Update existing review
+        const updatedReview = await updateReview(editingReview.id, {
+          rating,
+          comment: comment.trim(),
+        });
 
-      onReviewSubmitted(newReview);
-      toast.success(t("review.submitted", "Review submitted successfully"));
+        // Merge the updated review with the original review data
+        const mergedReview = { ...editingReview, ...updatedReview };
+        onReviewSubmitted(mergedReview);
+        toast.success(t("review.updated", "Review updated successfully"));
+
+        if (onEditComplete) {
+          onEditComplete();
+        }
+      } else {
+        // Create new review
+        const newReview = await submitReview(teacherId, {
+          rating,
+          comment: comment.trim(),
+        });
+
+        onReviewSubmitted(newReview);
+        toast.success(t("review.submitted", "Review submitted successfully"));
+      }
 
       // Reset form
       setRating(0);
@@ -89,42 +135,60 @@ export default function ReviewForm({
       setIsOpen(false);
     } catch (error) {
       console.error("Failed to submit review:", error);
-      toast.error(t("review.submit_error", "Failed to submit review"));
+      const errorMessage = isEditMode
+        ? t("review.update_error", "Failed to update review")
+        : t("review.submit_error", "Failed to submit review");
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const resetForm = () => {
-    setRating(0);
-    setComment("");
+    if (!isEditMode) {
+      setRating(0);
+      setComment("");
+    }
     setHoveredRating(0);
   };
 
+  const handleDialogClose = (open: boolean) => {
+    setIsOpen(open);
+    if (!open) {
+      if (isEditMode && onEditComplete) {
+        onEditComplete();
+      } else {
+        resetForm();
+      }
+    }
+  };
+
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={(open) => {
-        setIsOpen(open);
-        if (!open) resetForm();
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button className="w-full sm:w-auto" disabled={hasReviewed}>
-          <Plus className="w-4 h-4 mr-2" />
-          {t("review.write_review", "Write a Review")}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={handleDialogClose}>
+      {!isEditMode && (
+        <DialogTrigger asChild>
+          {triggerButton || (
+            <Button className="w-full sm:w-auto" disabled={hasReviewed}>
+              <Plus className="w-4 h-4 mr-2" />
+              {t("review.write_review", "Write a Review")}
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {t("review.write_review_title", "Write a Review")}
+            {isEditMode
+              ? t("review.edit_review_title", "Edit Review")
+              : t("review.write_review_title", "Write a Review")}
           </DialogTitle>
           <DialogDescription>
-            {t(
-              "review.write_review_description",
-              "Share your experience with this teacher"
-            )}
+            {isEditMode
+              ? t("review.edit_review_description", "Update your review")
+              : t(
+                  "review.write_review_description",
+                  "Share your experience with this teacher"
+                )}
           </DialogDescription>
         </DialogHeader>
 
@@ -182,7 +246,7 @@ export default function ReviewForm({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsOpen(false)}
+              onClick={() => handleDialogClose(false)}
               disabled={isSubmitting}
             >
               {t("common.cancel", "Cancel")}
@@ -192,8 +256,12 @@ export default function ReviewForm({
               disabled={isSubmitting || rating === 0 || !comment.trim()}
             >
               {isSubmitting
-                ? t("review.submitting", "Submitting...")
-                : t("review.submit", "Submit Review")}
+                ? isEditMode
+                  ? t("review.updating", "Updating...")
+                  : t("review.submitting", "Submitting...")
+                : isEditMode
+                  ? t("review.update", "Update Review")
+                  : t("review.submit", "Submit Review")}
             </Button>
           </DialogFooter>
         </form>

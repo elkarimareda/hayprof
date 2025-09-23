@@ -12,7 +12,6 @@ import type {
 import Combobox from "@/components/ui/Combobox";
 import FieldSelect from "@/components/ui/FieldSelect";
 import DatePicker from "@/components/ui/DatePicker";
-import DateTimePicker from "@/components/ui/DateTimePicker";
 import Dropzone from "@/components/ui/dropzone";
 import {
   FormControl,
@@ -73,12 +72,15 @@ function Field<T extends FieldValues>({
       case "date":
         return <DatePicker {...field} min={min} max={max} />;
       case "datetime":
-        return <DateTimePicker {...field} min={min} max={max} />;
+        return <DatePicker {...field} min={min} max={max} includeTime />;
       case "textarea":
         return (
           <Textarea
             {...field}
-            className={cn(error && "border-red-400 focus-visible:ring-red-400")}
+            className={cn(
+              "border-gray-200",
+              error && "border-red-400 focus-visible:ring-red-400"
+            )}
           />
         );
       case "combobox":
@@ -118,7 +120,10 @@ function Field<T extends FieldValues>({
             min={min}
             max={max}
             {...field}
-            className={cn(error && "border-red-400 focus-visible:ring-red-400")}
+            className={cn(
+              "border-gray-200",
+              error && "border-red-400 focus-visible:ring-red-400"
+            )}
           />
         );
         break;

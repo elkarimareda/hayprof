@@ -3,46 +3,18 @@ import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Star,
-  MessageCircle,
-  MapPin,
-  Globe,
-  CheckCircle,
-  BookOpen,
-  Edit,
-  Trash2,
-  Save,
-  X,
-} from "lucide-react";
+import { MapPin, Globe, CheckCircle, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/utils/request";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import ReviewForm from "@/components/FormReview";
+import ReviewForm from "@/components/Reviews/FormReview";
 import { useAuth } from "@/hooks/useAuth";
 import type { Course } from "@/apis/courses";
+import Stars from "@/components/Reviews/Stars";
+import ListReviews from "@/components/Reviews/ListReviews";
+import type { Review } from "@/Models/Review";
 
 export const Route = createFileRoute("/_public/teacher/$id")({
   component: TeacherProfile,
@@ -86,22 +58,6 @@ interface Teacher {
   response_time?: string;
 }
 
-export interface Review {
-  comment: string;
-  course?: { title: string };
-  created_at: string;
-  id: number;
-  is_verified: boolean;
-  rating: number;
-  student: {
-    id: number;
-    name: string;
-    first_name: string;
-    last_name: string;
-    photo_url?: string;
-  };
-}
-
 interface TeacherProfileData {
   profile: Teacher;
   reviews: Review[];
@@ -126,15 +82,6 @@ const getTeacherReviews = async (
   return response.data;
 };
 
-// API function to update review
-const updateReview = async (
-  reviewId: number,
-  reviewData: { rating: number; comment: string }
-): Promise<Review> => {
-  const response = await api.put<Review>(`/reviews/${reviewId}`, reviewData);
-  return response.data;
-};
-
 // API function to delete review
 const deleteReview = async (reviewId: number): Promise<void> => {
   await api.delete(`/reviews/${reviewId}`);
@@ -150,9 +97,6 @@ function TeacherProfile() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [editingReview, setEditingReview] = useState<Review | null>(null);
-  const [editRating, setEditRating] = useState<number>(0);
-  const [editComment, setEditComment] = useState<string>("");
-  const [isUpdating, setIsUpdating] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchTeacherProfile = async () => {
@@ -186,93 +130,45 @@ function TeacherProfile() {
     return `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase();
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const renderStars = (rating: number) => {
-    return (
-      <div className="flex items-center">
-        {[...Array(5)].map((_, index) => (
-          <Star
-            key={index}
-            className={`w-4 h-4 ${
-              index < Math.floor(rating)
-                ? "text-yellow-400 fill-current"
-                : "text-gray-300"
-            }`}
-          />
-        ))}
-        <span className="ml-1 text-sm text-gray-600">
-          ({rating?.toFixed(1)})
-        </span>
-      </div>
+  const handleReviewSubmitted = (reviewData: Review) => {
+    // Check if this is an update to an existing review
+    const existingReviewIndex = reviews.findIndex(
+      (r) => r.id === reviewData.id
     );
-  };
 
-  const handleReviewSubmitted = (newReview: Review) => {
-    setReviews((prev) => [newReview, ...prev]);
-
-    // Update teacher stats if available
-    if (teacher) {
-      setTeacher((prev) =>
-        prev
-          ? {
-              ...prev,
-              total_reviews: (prev.total_reviews || 0) + 1,
-              // Optionally recalculate rating
-              rating: prev.rating
-                ? (prev.rating * (prev.total_reviews || 0) + newReview.rating) /
-                  ((prev.total_reviews || 0) + 1)
-                : newReview.rating,
-            }
-          : null
+    if (existingReviewIndex !== -1) {
+      // Update existing review
+      setReviews((prev) =>
+        prev.map((review) =>
+          review.id === reviewData.id ? reviewData : review
+        )
       );
+    } else {
+      // Add new review
+      setReviews((prev) => [reviewData, ...prev]);
+
+      // Update teacher stats for new reviews only
+      if (teacher) {
+        setTeacher((prev) =>
+          prev
+            ? {
+                ...prev,
+                total_reviews: (prev.total_reviews || 0) + 1,
+                // Optionally recalculate rating
+                rating: prev.rating
+                  ? (prev.rating * (prev.total_reviews || 0) +
+                      reviewData.rating) /
+                    ((prev.total_reviews || 0) + 1)
+                  : reviewData.rating,
+              }
+            : null
+        );
+      }
     }
   };
 
   const handleEditReview = (review: Review) => {
     setEditingReview(review);
-    setEditRating(review.rating);
-    setEditComment(review.comment);
-  };
-
-  const handleUpdateReview = async () => {
-    if (!editingReview || editRating === 0 || !editComment.trim()) {
-      toast.error(t("review.fill_all_fields", "Please fill all fields"));
-      return;
-    }
-
-    setIsUpdating(true);
-    try {
-      const updatedReview = await updateReview(editingReview.id, {
-        rating: editRating,
-        comment: editComment.trim(),
-      });
-
-      // Update the review in the list
-      setReviews((prev) =>
-        prev.map((review) =>
-          review.id === editingReview.id
-            ? { ...review, ...updatedReview }
-            : review
-        )
-      );
-
-      toast.success(t("review.updated", "Review updated successfully"));
-      setEditingReview(null);
-      setEditRating(0);
-      setEditComment("");
-    } catch (error) {
-      console.error("Failed to update review:", error);
-      toast.error(t("review.update_error", "Failed to update review"));
-    } finally {
-      setIsUpdating(false);
-    }
   };
 
   const handleDeleteReview = async (reviewId: number) => {
@@ -299,12 +195,6 @@ function TeacherProfile() {
       console.error("Failed to delete review:", error);
       toast.error(t("review.delete_error", "Failed to delete review"));
     }
-  };
-
-  const cancelEdit = () => {
-    setEditingReview(null);
-    setEditRating(0);
-    setEditComment("");
   };
 
   if (loading) {
@@ -377,7 +267,7 @@ function TeacherProfile() {
 
               {teacher.rating && (
                 <div className="flex items-center justify-center md:justify-start mb-4">
-                  {renderStars(teacher.rating)}
+                  <Stars rating={teacher.rating} />
                   <span className="ml-2 text-sm text-gray-600">
                     ({teacher.total_reviews} {t("teacher.reviews", "reviews")})
                   </span>
@@ -620,12 +510,14 @@ function TeacherProfile() {
                           (r) => r.student?.id === user?.profile?.id
                         ))
                     }
+                    editingReview={editingReview}
+                    onEditComplete={() => setEditingReview(null)}
                   />
                 </div>
                 {teacher?.rating && teacher?.total_reviews && (
                   <div className="flex items-center gap-4 pt-2">
                     <div className="flex items-center gap-2">
-                      {renderStars(teacher.rating)}
+                      <Stars rating={teacher.rating} />
                     </div>
                     <span className="text-sm text-gray-600">
                       {t("review.based_on_reviews", {
@@ -638,222 +530,12 @@ function TeacherProfile() {
               </CardHeader>
             </Card>
           </div>
-
-          {/* Reviews List */}
-          {reviews?.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-12">
-                <MessageCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {t("teacher.no_reviews", "No reviews yet")}
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  {t(
-                    "teacher.no_reviews_message",
-                    "This teacher hasn't received any reviews yet."
-                  )}
-                </p>
-                <ReviewForm
-                  teacherId={id}
-                  onReviewSubmitted={handleReviewSubmitted}
-                  hasReviewed={
-                    isAuthenticated &&
-                    (user?.user_type !== "student" ||
-                      reviews.some((r) => r.student?.id === user?.profile?.id))
-                  }
-                />
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {reviews?.map((review) => (
-                <Card key={review.id}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-start gap-4">
-                      <Avatar>
-                        <AvatarImage src={review.student?.photo_url} />
-                        <AvatarFallback>
-                          {review.student?.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium">
-                            {review.student?.name}
-                          </h4>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-500">
-                              {formatDate(review.created_at)}
-                            </span>
-                            {/* Edit/Delete buttons for user's own review */}
-                            {isAuthenticated &&
-                              user?.profile.id === review.student?.id && (
-                                <div className="flex gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEditReview(review)}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <Edit className="h-3 w-3" />
-                                  </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>
-                                          {t(
-                                            "review.delete_title",
-                                            "Delete Review"
-                                          )}
-                                        </AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          {t(
-                                            "review.delete_description",
-                                            "Are you sure you want to delete this review? This action cannot be undone."
-                                          )}
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>
-                                          {t("common.cancel", "Cancel")}
-                                        </AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() =>
-                                            handleDeleteReview(review.id)
-                                          }
-                                          className="bg-red-600 hover:bg-red-700"
-                                        >
-                                          {t("common.delete", "Delete")}
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </div>
-                              )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 mb-2">
-                          {renderStars(review.rating)}
-                          {review.course && (
-                            <Badge variant="outline" className="text-xs">
-                              {review.course.title}
-                            </Badge>
-                          )}
-                        </div>
-
-                        <p className="text-gray-700">{review.comment}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          <ListReviews
+            reviews={reviews}
+            onEditReview={handleEditReview}
+            onDeleteReview={handleDeleteReview}
+          />
         </TabsContent>
-
-        {/* Edit Review Dialog */}
-        <Dialog
-          open={!!editingReview}
-          onOpenChange={(open) => !open && cancelEdit()}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {t("review.edit_review_title", "Edit Review")}
-              </DialogTitle>
-              <DialogDescription>
-                {t("review.edit_review_description", "Update your review")}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              {/* Rating Stars */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  {t("review.rating", "Rating")}
-                </label>
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      className="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-                      onClick={() => setEditRating(star)}
-                    >
-                      <Star
-                        className={`w-6 h-6 transition-colors ${
-                          star <= editRating
-                            ? "text-yellow-400 fill-current"
-                            : "text-gray-300 hover:text-yellow-200"
-                        }`}
-                      />
-                    </button>
-                  ))}
-                  {editRating > 0 && (
-                    <span className="ml-2 text-sm text-gray-600">
-                      ({editRating} {editRating === 1 ? "star" : "stars"})
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Comment */}
-              <div className="space-y-2">
-                <label htmlFor="edit-comment" className="text-sm font-medium">
-                  {t("review.comment", "Comment")}
-                </label>
-                <Textarea
-                  id="edit-comment"
-                  value={editComment}
-                  onChange={(e) => setEditComment(e.target.value)}
-                  placeholder={t(
-                    "review.comment_placeholder",
-                    "Share your thoughts about this teacher..."
-                  )}
-                  rows={4}
-                  maxLength={500}
-                />
-                <div className="text-right text-xs text-gray-500">
-                  {editComment.length}/500
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter className="gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={cancelEdit}
-                disabled={isUpdating}
-                className="flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                {t("common.cancel", "Cancel")}
-              </Button>
-              <Button
-                onClick={handleUpdateReview}
-                disabled={isUpdating || editRating === 0 || !editComment.trim()}
-                className="flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                {isUpdating
-                  ? t("review.updating", "Updating...")
-                  : t("review.update", "Update Review")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </Tabs>
     </div>
   );

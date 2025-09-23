@@ -49,13 +49,14 @@ export const courseSchema = z
       .min(1, "At least 1 session required")
       .max(20, "At most 20 sessions allowed"),
     duration_session: z.coerce
-      .number({ error: "Session duration must be a number (in hours)" })
+      .number({ error: "Session duration must be a number (in minutes)" })
+      .int("Duration must be a whole number")
       .positive("Duration must be positive")
-      .min(0.5, "Session must be at least 0.5 hours (30 minutes)")
-      .max(8, "Session cannot exceed 8 hours")
+      .min(30, "Session must be at least 30 minutes")
+      .max(480, "Session cannot exceed 480 minutes (8 hours)")
       .multipleOf(
-        0.5,
-        "Duration must be in 0.5 hour increments (e.g., 1, 1.5, 2)"
+        15,
+        "Duration must be in 15 minute increments (e.g., 30, 45, 60, 90)"
       ),
     min_students: z.coerce
       .number({ error: "Minimum students must be a number" })

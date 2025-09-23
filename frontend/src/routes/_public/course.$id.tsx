@@ -22,6 +22,8 @@ import {
   unenrollFromCourse,
   type Course,
   type Enrollment,
+  getCourseMeeting,
+  joinCourseMeeting,
 } from "@/apis/courses";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +49,16 @@ function CourseProfile() {
       try {
         setLoading(true);
         const data = await getCourse(id);
-        setCourse(data);
+        const meetings = await getCourseMeeting(id);
+        setCourse({
+          ...data,
+          schedules: data.schedules.map((s) => ({
+            ...s,
+            meeting: meetings.meetings.find(
+              (m) => m.metadata.schedule_id === s.id
+            ),
+          })),
+        });
       } catch (error) {
         console.error("Failed to fetch course:", error);
         toast.error(t("errors.generic"));
@@ -217,6 +228,30 @@ function CourseProfile() {
     );
   }
 
+  const joinMeeting = (meeting: {
+    meeting_id: string;
+    username: string;
+    password: string;
+    is_moderator: boolean;
+  }) => {
+    console.log("Joining meeting:", meeting);
+    // Call the API to join the meeting
+    joinCourseMeeting(
+      meeting.meeting_id,
+      user?.name || "test",
+      meeting.moderator_password,
+      true
+    )
+      .then((data) => {
+        // Handle successful joining
+        console.log("Joined meeting:", data.join_url);
+      })
+      .catch((error) => {
+        // Handle errors
+        console.error("Failed to join meeting:", error);
+      });
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Course Header */}
@@ -302,7 +337,7 @@ function CourseProfile() {
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-purple-600">
-                    {course.duration_session}Hours
+                    {t("minutes", { count: course.duration_session })}
                   </div>
                   <div className="text-sm text-gray-600">
                     {t("course.per_session", "per session")}
@@ -420,12 +455,16 @@ function CourseProfile() {
                     <div
                       key={schedule.id}
                       className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      onClick={() => joinMeeting(schedule.meeting)}
                     >
                       <div className="flex items-center gap-3">
                         <Calendar className="w-4 h-4 text-blue-600" />
                         <div>
                           <div className="font-medium">
                             {formatDate(schedule.datetime_scheduled)}
+                          </div>
+                          <div className="font-medium">
+                            {schedule.meeting.meeting_id}
                           </div>
                         </div>
                       </div>
@@ -476,7 +515,9 @@ function CourseProfile() {
                     {t("course.total_duration", "Total Duration")}:
                   </span>
                   <span className="font-medium">
-                    {course.count_session * course.duration_session} Hours
+                    {t("minutes", {
+                      count: course.count_session * course.duration_session,
+                    })}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -524,7 +565,7 @@ function CourseProfile() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User className="w-5 h-5" />
-                  {t("course.instructor", "Instructor")}
+                  {t("course.prof")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -573,24 +614,6 @@ function CourseProfile() {
                 </div>
                 <div className="text-sm text-gray-600">
                   {t("course.per_student", "per student")}
-                </div>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>{t("course.sessions", "Sessions")}:</span>
-                  <span>{course.count_session}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>{t("course.total_time", "Total Time")}:</span>
-                  <span>
-                    {course.count_session * course.duration_session} Hours
-                  </span>
-                </div>
-                <div className="flex justify-between font-medium border-t pt-2">
-                  <span>{t("course.total_cost", "Total Cost")}:</span>
-                  <span className="text-green-600">
-                    {formatPrice(course.price_per_student)}
-                  </span>
                 </div>
               </div>
             </CardContent>

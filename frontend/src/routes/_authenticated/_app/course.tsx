@@ -11,6 +11,7 @@ import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { getSubjects, type Subject } from "@/apis/reference";
 import { createCourse } from "@/apis/courses";
 import { toast } from "sonner";
+import { format, addWeeks } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/_app/course")({
   beforeLoad: ({ context }) => {
@@ -38,10 +39,10 @@ function Course() {
       thumbnail: null,
       price_per_student: 0,
       count_session: 1,
-      duration_session: 1.5,
+      duration_session: 90, // 90 minutes (1.5 hours)
       min_students: 1,
       max_students: 10,
-      course_date: new Date().toISOString().split("T")[0],
+      course_date: format(new Date(), "yyyy-MM-dd"),
       schedule: [
         {
           date: "",
@@ -144,8 +145,8 @@ function Course() {
     const courseDate = form.getValues("course_date");
 
     // Use course date or today as base date
-    const baseDate = courseDate || new Date().toISOString().split("T")[0];
-    const today = new Date().toISOString().split("T")[0];
+    const baseDate = courseDate || format(new Date(), "yyyy-MM-dd");
+    const today = format(new Date(), "yyyy-MM-dd");
 
     // Ensure we use today or later as the minimum date
     const startDate = baseDate >= today ? baseDate : today;
@@ -159,12 +160,10 @@ function Course() {
     // Add new schedule slots based on current session count
     for (let i = 0; i < currentSessionCount; i++) {
       // Calculate date for each session (spread over days)
-      const sessionDate = new Date(startDate);
-      sessionDate.setDate(sessionDate.getDate() + i * 7); // Weekly intervals
+      const sessionDate = addWeeks(new Date(startDate), i); // Weekly intervals
 
       // Set default time to 9:00 AM
-      const defaultDateTime =
-        sessionDate.toISOString().split("T")[0] + "T09:00";
+      const defaultDateTime = format(sessionDate, "yyyy-MM-dd") + "T09:00";
 
       append({
         date: defaultDateTime,
@@ -269,7 +268,7 @@ function Course() {
                 label={t("course.course_date")}
                 type="date"
                 error={form.formState.errors.course_date}
-                min={new Date().toISOString().split("T")[0]}
+                min={format(new Date(), "yyyy-MM-dd")}
               />
             </div>
 
@@ -304,7 +303,9 @@ function Course() {
                   control={form.control}
                   name="duration_session"
                   type="number"
-                  label={t("course.duration_session_hours")}
+                  min="15"
+                  max="480"
+                  label={t("course.duration_session_minutes")}
                   error={form.formState.errors.duration_session}
                 />
                 <div className="text-xs text-muted-foreground">
@@ -361,7 +362,7 @@ function Course() {
                       type="datetime"
                       label={t("course.date_time")}
                       error={form.formState.errors.schedule?.[index]?.date}
-                      min={new Date().toISOString().split("T")[0]}
+                      min={form.getValues("course_date")}
                     />
                   </div>
                 </div>

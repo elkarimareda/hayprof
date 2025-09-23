@@ -15,6 +15,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInputs } from "@/validators/loginSchema";
 import Field from "@/components/ui/Field";
 import { Form } from "@/components/ui/form";
+import { FaFacebook, FaGoogle } from "react-icons/fa";
+import { initiateSocialAuth } from "@/apis/social";
+import { useState } from "react";
 
 export const Route = createFileRoute("/_public/_auth/login")({
   component: Login,
@@ -24,6 +27,10 @@ function Login() {
   const { t } = useTranslation();
   const { auth } = Route.useRouteContext();
   const navigate = Route.useNavigate();
+  const [socialLoading, setSocialLoading] = useState<{
+    facebook: boolean;
+    google: boolean;
+  }>({ facebook: false, google: false });
 
   const form = useForm<LoginInputs>({
     resolver: zodResolver(loginSchema),
@@ -47,12 +54,96 @@ function Login() {
     }
   };
 
+  const handleFacebookLogin = async () => {
+    try {
+      setSocialLoading((prev) => ({ ...prev, facebook: true }));
+      await initiateSocialAuth("facebook");
+    } catch (error) {
+      console.error("Facebook login error:", error);
+      // Show user-friendly error message
+      form.setError("root", {
+        type: "manual",
+        message: "Failed to connect with Facebook. Please try again.",
+      });
+    } finally {
+      setSocialLoading((prev) => ({ ...prev, facebook: false }));
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setSocialLoading((prev) => ({ ...prev, google: true }));
+      await initiateSocialAuth("google");
+    } catch (error) {
+      console.error("Google login error:", error);
+      // Show user-friendly error message
+      form.setError("root", {
+        type: "manual",
+        message: "Failed to connect with Google. Please try again.",
+      });
+    } finally {
+      setSocialLoading((prev) => ({ ...prev, google: false }));
+    }
+  };
+
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle>{t("login_account")}</CardTitle>
       </CardHeader>
       <CardContent>
+        {/* Display form-level errors */}
+        {form.formState.errors.root && (
+          <div className="mb-4 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+            {form.formState.errors.root.message}
+          </div>
+        )}
+
+        {/* Social Login Buttons */}
+        <div className="space-y-3 mb-6">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full flex items-center justify-center gap-2 hover:bg-blue-50 border-blue-200"
+            onClick={handleFacebookLogin}
+            disabled={socialLoading.facebook || socialLoading.google}
+          >
+            {socialLoading.facebook ? (
+              <LoaderCircle className="w-5 h-5 animate-spin text-blue-600" />
+            ) : (
+              <FaFacebook className="w-5 h-5 text-blue-600" />
+            )}
+            {t("login_with_facebook")}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full flex items-center justify-center gap-2 hover:bg-red-50 border-red-200"
+            onClick={handleGoogleLogin}
+            disabled={socialLoading.facebook || socialLoading.google}
+          >
+            {socialLoading.google ? (
+              <LoaderCircle className="w-5 h-5 animate-spin text-red-600" />
+            ) : (
+              <FaGoogle className="w-5 h-5 text-red-600" />
+            )}
+            {t("login_with_google")}
+          </Button>
+        </div>
+
+        {/* Divider */}
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white px-2 text-muted-foreground">
+              {t("or_continue_with")}
+            </span>
+          </div>
+        </div>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* Email/Phone Field */}

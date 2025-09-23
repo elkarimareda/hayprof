@@ -142,6 +142,14 @@ export const getCourse = async (courseId: string): Promise<Course> => {
 };
 
 /**
+ * Get a meeting by course ID
+ */
+export const getCourseMeeting = async (courseId: string): Promise<unknown> => {
+  const response = await api.get<unknown>(`/courses/${courseId}/meetings`);
+  return response.data;
+};
+
+/**
  * Get courses pending validation (admin only)
  */
 export const getPendingCourses = async (): Promise<CoursesResponse> => {
@@ -254,5 +262,24 @@ export const unenrollFromCourse = async (
   courseId: number
 ): Promise<{ message: string }> => {
   const response = await api.delete(`/courses/${courseId}/enroll`);
+  return response.data;
+};
+
+export const joinCourseMeeting = async (
+  meetingId: number,
+  username: string,
+  password: string,
+  is_moderator: boolean = false
+): Promise<{ join_url: string }> => {
+  const response = await api.post<{ join_url: string }>(
+    `/bigbluebutton/meetings/join`,
+    {
+      meeting_id: meetingId,
+      user_name: username,
+      password,
+      is_moderator,
+      user_id: undefined,
+    }
+  );
   return response.data;
 };
