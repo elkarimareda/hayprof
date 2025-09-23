@@ -22,6 +22,7 @@ class Course extends Model
     'duration_session',
     'min_students',
     'max_students',
+    'course_date',
     'is_active',
     'is_validated',
     'validated_at',
@@ -32,7 +33,8 @@ class Course extends Model
   protected $casts = [
     'price_per_student' => 'decimal:2',
     'count_session' => 'integer',
-    'duration_session' => 'decimal:1',
+    'duration_session' => 'integer', // Now storing minutes as integer
+    'course_date' => 'date',
     'is_active' => 'boolean',
     'is_validated' => 'boolean',
     'validated_at' => 'datetime',
@@ -149,7 +151,7 @@ class Course extends Model
     foreach ($schedules as $schedule) {
       $this->schedules()->create([
         'datetime_scheduled' => $schedule['date'],
-        'time_of_session' => (int) ($durationSession * 60), // Convert hours to minutes
+        'time_of_session' => (int) $durationSession, // Now storing minutes as integer
       ]);
     }
   }

@@ -138,6 +138,57 @@ class BigBlueButtonController extends Controller
         ]);
 
         try {
+            // First check if meeting exists and is running
+            $meetingId = $validated['meeting_id'];
+            $isRunning = $this->bbbService->isMeetingRunning($meetingId);
+            
+            if (!$isRunning) {
+                // Try to get meeting info to check if it exists
+                try {
+                    // For moderators, we can try to start the meeting
+                    if ($validated['is_moderator'] ?? false) {
+                        // Find the meeting in database to get creation parameters
+                        $dbMeeting = BigBlueButtonMeeting::where('meeting_id', $meetingId)->first();
+                        
+                        if ($dbMeeting) {
+                            // Try to recreate the meeting if it's a moderator
+                            $createParams = [
+                                'name' => $dbMeeting->name,
+                                'meetingID' => $dbMeeting->meeting_id,
+                                'attendeePW' => $dbMeeting->attendee_password,
+                                'moderatorPW' => $dbMeeting->moderator_password,
+                                'record' => $dbMeeting->is_recording ? 'true' : 'false',
+                            ];
+                            
+                            if ($dbMeeting->max_participants) {
+                                $createParams['maxParticipants'] = $dbMeeting->max_participants;
+                            }
+                            
+                            if ($dbMeeting->duration) {
+                                $createParams['duration'] = $dbMeeting->duration;
+                            }
+                            
+                            $this->bbbService->createMeeting($createParams);
+                            
+                            // Update meeting status to running
+                            $dbMeeting->update(['status' => 'running']);
+                        }
+                    } else {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Meeting is not currently running. Please wait for the teacher to start the meeting.',
+                            'code' => 'MEETING_NOT_RUNNING'
+                        ], 400);
+                    }
+                } catch (Exception $e) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Meeting not found or has ended. Please check with your teacher.',
+                        'code' => 'MEETING_NOT_FOUND'
+                    ], 404);
+                }
+            }
+
             $options = [];
             
             if (isset($validated['user_id'])) {
@@ -157,13 +208,15 @@ class BigBlueButtonController extends Controller
 
             return response()->json([
                 'success' => true,
-                'join_url' => $joinUrl
+                'join_url' => $joinUrl,
+                'meeting_id' => $validated['meeting_id']
             ]);
 
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to generate join URL'
+                'message' => 'Failed to generate join URL: ' . $e->getMessage(),
+                'code' => 'JOIN_ERROR'
             ], 500);
         }
     }
@@ -343,6 +396,87 @@ class BigBlueButtonController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete recording'
+            ], 500);
+        }
+    }
+
+    /**
+     * Start or restart a meeting (for moderators)
+     */
+    public function startMeeting(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'meeting_id' => ['required', 'string', 'max:255'],
+        ]);
+
+        try {
+            $meetingId = $validated['meeting_id'];
+            $dbMeeting = BigBlueButtonMeeting::where('meeting_id', $meetingId)->first();
+
+            if (!$dbMeeting) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Meeting not found in database'
+                ], 404);
+            }
+
+            // Check if meeting is already running
+            $isRunning = $this->bbbService->isMeetingRunning($meetingId);
+            
+            if ($isRunning) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Meeting is already running',
+                    'meeting_id' => $meetingId
+                ]);
+            }
+
+            // Create/restart the meeting
+            $createParams = [
+                'name' => $dbMeeting->name,
+                'meetingID' => $dbMeeting->meeting_id,
+                'attendeePW' => $dbMeeting->attendee_password,
+                'moderatorPW' => $dbMeeting->moderator_password,
+                'record' => $dbMeeting->is_recording ? 'true' : 'false',
+            ];
+
+            // Add optional parameters
+            if ($dbMeeting->max_participants) {
+                $createParams['maxParticipants'] = $dbMeeting->max_participants;
+            }
+
+            if ($dbMeeting->duration) {
+                $createParams['duration'] = $dbMeeting->duration;
+            }
+
+            if ($dbMeeting->metadata && isset($dbMeeting->metadata['welcome_message'])) {
+                $createParams['welcome'] = $dbMeeting->metadata['welcome_message'];
+            }
+
+            $result = $this->bbbService->createMeeting($createParams);
+
+            if ($result['returncode'] === 'SUCCESS') {
+                // Update meeting status
+                $dbMeeting->update(['status' => 'running']);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Meeting started successfully',
+                    'meeting_id' => $meetingId,
+                    'data' => $result
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to start meeting',
+                'data' => $result
+            ], 400);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to start meeting: ' . $e->getMessage()
             ], 500);
         }
     }

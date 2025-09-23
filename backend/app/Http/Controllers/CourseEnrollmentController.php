@@ -161,9 +161,22 @@ class CourseEnrollmentController extends Controller
                         'id' => $enrollment->course->id,
                         'title' => $enrollment->course->title,
                         'subject' => $enrollment->course->subject,
+                        'proficiency_level' => $enrollment->course->proficiency_level ?? null,
+                        'description' => $enrollment->course->description,
+                        'thumbnail' => $enrollment->course->thumbnail_url ?? null,
+                        'price_per_student' => $enrollment->course->price_per_student ?? null,
+                        'count_session' => $enrollment->course->count_session ?? null,
+                        'duration_session' => $enrollment->course->duration_session ?? null,
+                        'min_students' => $enrollment->course->min_students ?? null,
+                        'max_students' => $enrollment->course->max_students ?? null,
+                        'schedules' => $enrollment->course->schedules ?? null,
+                        'is_active' => $enrollment->course->is_active ?? null,
+                        'is_validated' => $enrollment->course->is_validated ?? null,
+                        'created_at' => $enrollment->course->created_at ?? null,
                         'teacher' => [
                             'id' => $enrollment->course->teacher->id,
-                            'name' => $enrollment->course->teacher->user->first_name . ' ' . $enrollment->course->teacher->user->last_name,
+                            'first_name' => $enrollment->course->teacher->first_name,
+                            'last_name' => $enrollment->course->teacher->last_name,
                         ]
                     ]
                 ];
@@ -182,11 +195,16 @@ class CourseEnrollmentController extends Controller
         // }
 
         $enrollments = $course->enrollments()
-            ->with(['student.user'])
+            ->with(['student.user', 'course'])
             ->orderBy('created_at', 'desc')
             ->get();
 
         return response()->json([
+            'course' => [
+                'id' => $course->id,
+                'title' => $course->title,
+                'thumbnail' => $course->thumbnail_url,
+            ],
             'enrollments' => $enrollments->map(function ($enrollment) {
                 return [
                     'id' => $enrollment->id,
@@ -201,6 +219,6 @@ class CourseEnrollmentController extends Controller
                     ]
                 ];
             })
-        ]);
+        ], 200);
     }
 }

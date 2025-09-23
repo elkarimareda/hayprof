@@ -13,6 +13,37 @@ use Illuminate\Validation\ValidationException;
 class ReviewController extends Controller
 {
     /**
+     * Format review object for consistent API responses
+     */
+    private function formatReview(Review $review): array
+    {
+        // Get student's profile photo
+        $studentPhoto = $review->student->medias()
+            ->where('type', 'profile_photo')
+            ->first();
+
+        return [
+            'id' => $review->id,
+            'rating' => $review->rating,
+            'comment' => $review->comment,
+            'is_verified' => $review->is_verified,
+            'is_approved' => $review->is_approved,
+            'created_at' => $review->created_at,
+            'updated_at' => $review->updated_at,
+            'student' => [
+                'id' => $review->student->id,
+                'name' => trim(($review->student->user->first_name ?? '') . ' ' . ($review->student->user->last_name ?? '')) ?: ($review->student->user->name ?? 'Anonymous'),
+                'user_id' => $review->student->user->id,
+                'photo' => $studentPhoto ? $studentPhoto->url : null,
+            ],
+            'course' => $review->course ? [
+                'id' => $review->course->id,
+                'title' => $review->course->title,
+                'subject' => $review->course->subject,
+            ] : null,
+        ];
+    }
+    /**
      * Get reviews for a specific teacher
      */
     public function getTeacherReviews(Request $request, int $teacherId): JsonResponse
@@ -22,6 +53,10 @@ class ReviewController extends Controller
         $reviews = $teacher->getReviewsWithStudents()
             ->paginate($request->get('per_page', 10));
 
+        $formattedReviews = $reviews->getCollection()->map(function ($review) {
+            return $this->formatReview($review);
+        });
+
         $statistics = [
             'average_rating' => $teacher->getAverageRating(),
             'total_reviews' => $teacher->getTotalReviews(),
@@ -29,7 +64,13 @@ class ReviewController extends Controller
         ];
 
         return response()->json([
-            'reviews' => $reviews,
+            'reviews' => $formattedReviews,
+            'pagination' => [
+                'current_page' => $reviews->currentPage(),
+                'last_page' => $reviews->lastPage(),
+                'per_page' => $reviews->perPage(),
+                'total' => $reviews->total(),
+            ],
             'statistics' => $statistics
         ]);
     }
@@ -75,12 +116,9 @@ class ReviewController extends Controller
             'is_approved' => true // Auto-approve for now
         ]);
 
-        $review->load(['student.user', 'teacher.user', 'course']);
+        $review->load(['student.user', 'student.medias', 'course']);
 
-        return response()->json([
-            'message' => 'Review created successfully',
-            'review' => $review
-        ], 201);
+        return response()->json($this->formatReview($review), 201);
     }
 
     /**
@@ -107,12 +145,9 @@ class ReviewController extends Controller
         ]);
 
         $review->update($validatedData);
-        $review->load(['student.user', 'teacher.user', 'course']);
+        $review->load(['student.user', 'student.medias', 'course']);
 
-        return response()->json([
-            'message' => 'Review updated successfully',
-            'review' => $review
-        ]);
+        return response()->json($this->formatReview($review));
     }
 
     /**
@@ -150,11 +185,23 @@ class ReviewController extends Controller
         }
 
         $reviews = $user->student->reviews()
-            ->with(['teacher.user', 'course'])
+            ->with(['student.medias', 'course'])
             ->orderBy('created_at', 'desc')
             ->paginate($request->get('per_page', 10));
 
-        return response()->json($reviews);
+        $formattedReviews = $reviews->getCollection()->map(function ($review) {
+            return $this->formatReview($review);
+        });
+
+        return response()->json([
+            'reviews' => $formattedReviews,
+            'pagination' => [
+                'current_page' => $reviews->currentPage(),
+                'last_page' => $reviews->lastPage(),
+                'per_page' => $reviews->perPage(),
+                'total' => $reviews->total(),
+            ]
+        ]);
     }
 
     /**
@@ -175,9 +222,11 @@ class ReviewController extends Controller
             'is_verified' => $request->is_verified ?? $review->is_verified
         ]);
 
+        $review->load(['student.user', 'student.medias', 'course']);
+
         return response()->json([
             'message' => 'Review moderated successfully',
-            'review' => $review
+            'review' => $this->formatReview($review)
         ]);
     }
 }

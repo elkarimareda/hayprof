@@ -184,9 +184,8 @@ class TeacherController extends Controller
             'schedules' => $course->schedules->map(function ($schedule) {
               return [
                 'id' => $schedule->id,
-                'day_of_week' => $schedule->day_of_week,
-                'start_time' => $schedule->start_time,
-                'end_time' => $schedule->end_time,
+                'datetime_scheduled' => $schedule->datetime_scheduled,
+                'time_of_session' => $schedule->time_of_session,
               ];
             }),
             'is_active' => $course->is_active,

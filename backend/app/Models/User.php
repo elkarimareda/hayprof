@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -28,6 +29,9 @@ class User extends Authenticatable
         'password',
         'email_verified_at',
         'phone_verified_at',
+        'provider',
+        'provider_id',
+        'avatar',
     ];
 
     /**
@@ -97,6 +101,51 @@ class User extends Authenticatable
         return static::where('email', $identifier)
             ->orWhere('phone_number', $identifier)
             ->first();
+    }
+
+    /**
+     * Get all social accounts for this user
+     */
+    public function socialAccounts(): HasMany
+    {
+        return $this->hasMany(SocialAccount::class);
+    }
+
+    /**
+     * Get a specific social account by provider
+     */
+    public function getSocialAccount(string $provider): ?SocialAccount
+    {
+        return $this->socialAccounts()->where('provider', $provider)->first();
+    }
+
+    /**
+     * Check if user has a social account for the given provider
+     */
+    public function hasSocialAccount(string $provider): bool
+    {
+        return $this->socialAccounts()->where('provider', $provider)->exists();
+    }
+
+    /**
+     * Get all linked social providers
+     */
+    public function getLinkedProviders(): array
+    {
+        return $this->socialAccounts()->pluck('provider')->toArray();
+    }
+
+    /**
+     * Get the primary avatar (from most recent social account or null)
+     */
+    public function getPrimaryAvatar(): ?string
+    {
+        $latestSocialAccount = $this->socialAccounts()
+            ->whereNotNull('avatar')
+            ->latest()
+            ->first();
+            
+        return $latestSocialAccount?->avatar ?? $this->avatar;
     }
 
     // Validation rules

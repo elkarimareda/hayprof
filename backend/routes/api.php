@@ -6,6 +6,7 @@ use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseEnrollmentController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\TeacherController;
@@ -24,6 +25,8 @@ Route::prefix('bigbluebutton')
     ->group(function () {
         Route::post('/meetings', [BigBlueButtonController::class, 'createMeeting']);
         Route::post('/meetings/join', [BigBlueButtonController::class, 'joinMeeting']);
+        Route::post('/meetings/{meetingId}/start', [BigBlueButtonController::class, 'startMeeting'])
+            ->whereAlphaNumeric('meetingId');
         Route::get('/meetings/{meetingId}/info', [BigBlueButtonController::class, 'getMeetingInfo'])
             ->whereAlphaNumeric('meetingId');
         Route::delete('/meetings/{meetingId}', [BigBlueButtonController::class, 'endMeeting'])
@@ -47,6 +50,19 @@ Route::middleware('api')->group(function () {
 });
   Route::post('/register', [AuthController::class, 'register']);
   Route::post('/login', [AuthController::class, 'login']);
+  
+  // Social Authentication Routes
+  Route::prefix('auth/social')->group(function () {
+    Route::get('/{provider}/redirect', [SocialAuthController::class, 'redirectToProvider'])
+        ->where('provider', 'google|facebook|twitter|github');
+    Route::get('/{provider}/callback', [SocialAuthController::class, 'handleProviderCallback'])
+        ->where('provider', 'google|facebook|twitter|github');
+    Route::post('/{provider}/link', [SocialAuthController::class, 'linkAccount'])
+        ->where('provider', 'google|facebook|twitter|github');
+    Route::delete('/{provider}/unlink', [SocialAuthController::class, 'unlinkAccount'])
+        ->where('provider', 'google|facebook|twitter|github');
+  });
+  
   Route::post('/upload', [MediaController::class, 'upload']);
   Route::get('/media/config', [MediaController::class, 'config']);
 

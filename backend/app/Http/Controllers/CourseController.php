@@ -20,9 +20,10 @@ class CourseController extends Controller
       'thumbnail' => 'required|file|image|max:5120', // 5MB max
       'price_per_student' => 'required|numeric|min:1',
       'count_session' => 'required|integer|min:1|max:20',
-      'duration_session' => 'required|numeric|min:0.5|max:8',
+      'duration_session' => 'required|integer|min:30|max:480', // 30 minutes to 8 hours (480 minutes)
       'min_students' => 'required|integer|min:1',
       'max_students' => 'required|integer|min:1',
+      'course_date' => 'required|date',
       'schedule' => 'required|array|min:1',
       'schedule.*.date' => 'required|date_format:Y-m-d\\TH:i',
     ]);
@@ -92,6 +93,7 @@ class CourseController extends Controller
       'duration_session' => $validated['duration_session'],
       'min_students' => $validated['min_students'],
       'max_students' => $validated['max_students'],
+      'course_date' => $validated['course_date'],
       'is_validated' => false, // Requires validation by default
     ]);
 
@@ -169,6 +171,7 @@ class CourseController extends Controller
           'duration_session' => $course->duration_session,
           'min_students' => $course->min_students,
           'max_students' => $course->max_students,
+          'course_date' => $course->course_date,
           'schedules' => $course->schedules,
           'is_active' => $course->is_active,
           'is_validated' => $course->is_validated,
@@ -200,6 +203,7 @@ class CourseController extends Controller
           'duration_session' => $course->duration_session,
           'min_students' => $course->min_students,
           'max_students' => $course->max_students,
+          'course_date' => $course->course_date,
           'schedules' => $course->schedules,
           'teacher' => [
             'id' => $course->teacher->id,
@@ -318,6 +322,7 @@ class CourseController extends Controller
       'duration_session' => $course->duration_session,
       'min_students' => $course->min_students,
       'max_students' => $course->max_students,
+      'course_date' => $course->course_date,
       'is_active' => $course->is_active,
       'is_validated' => $course->is_validated,
       'created_at' => $course->created_at,
@@ -408,6 +413,7 @@ class CourseController extends Controller
         'duration_session' => $course->duration_session,
         'min_students' => $course->min_students,
         'max_students' => $course->max_students,
+        'course_date' => $course->course_date,
         'teacher' => [
           'id' => $course->teacher->id,
           'first_name' => $course->teacher->first_name,

@@ -77,6 +77,8 @@ class AuthController extends Controller
           'phone_number' => $user->phone_number,
           'user_type' => $user->user_type,
           'profile' => $user->profile,
+          'avatar' => $user->avatar,
+          'provider' => $user->provider,
         ],
         'token' => $token,
       ], 201);
@@ -114,6 +116,8 @@ class AuthController extends Controller
         'phone_number' => $user->phone_number,
         'user_type' => $user->user_type,
         'profile' => $user->profile,
+        'avatar' => $user->avatar,
+        'provider' => $user->provider,
       ],
       'token' => $token,
     ];
@@ -137,7 +141,7 @@ class AuthController extends Controller
 
   public function user(Request $request)
   {
-    $user = $request->user()->load($request->user()->user_type);
+    $user = $request->user()->load(['socialAccounts', $request->user()->user_type]);
 
     $response = [
       'id' => $user->id,
@@ -146,6 +150,15 @@ class AuthController extends Controller
       'phone_number' => $user->phone_number,
       'user_type' => $user->user_type,
       'profile' => $user->profile,
+      'avatar' => $user->getPrimaryAvatar(),
+      'social_accounts' => $user->socialAccounts->map(function ($account) {
+        return [
+          'provider' => $account->provider,
+          'provider_email' => $account->provider_email,
+          'avatar' => $account->avatar,
+        ];
+      }),
+      'linked_providers' => $user->getLinkedProviders(),
     ];
 
     // Add onboarding status for teachers
@@ -203,6 +216,8 @@ class AuthController extends Controller
           'phone_number' => $user->phone_number,
           'user_type' => $user->user_type,
           'profile' => $user->fresh()->profile,
+          'avatar' => $user->avatar,
+          'provider' => $user->provider,
         ],
       ]);
     } catch (\Exception $e) {
