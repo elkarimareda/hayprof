@@ -13,7 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Middleware registration is handled in service providers (AppServiceProvider)
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

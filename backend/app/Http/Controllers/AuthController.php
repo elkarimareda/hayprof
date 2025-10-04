@@ -141,7 +141,15 @@ class AuthController extends Controller
 
   public function user(Request $request)
   {
-    $user = $request->user()->load(['socialAccounts', $request->user()->user_type]);
+    $user = $request->user();
+
+    // Only eager load related profile relation when it exists (teacher or student)
+    $relations = ['socialAccounts'];
+    if (in_array($user->user_type, ['teacher', 'student'], true)) {
+      $relations[] = $user->user_type;
+    }
+
+    $user->load($relations);
 
     $response = [
       'id' => $user->id,
@@ -149,7 +157,6 @@ class AuthController extends Controller
       'email' => $user->email,
       'phone_number' => $user->phone_number,
       'user_type' => $user->user_type,
-      'profile' => $user->profile,
       'avatar' => $user->getPrimaryAvatar(),
       'social_accounts' => $user->socialAccounts->map(function ($account) {
         return [
@@ -159,13 +166,16 @@ class AuthController extends Controller
         ];
       }),
       'linked_providers' => $user->getLinkedProviders(),
+      'profile' => $user->profile,
     ];
 
     // Add onboarding status for teachers
     if ($user->isTeacher()) {
       $response['onboarding_completed'] = $user->profile->onboarding_completed ?? false;
+    }
+    if($user->user_type !== 'admin'){
       $profilePhoto = $user->profile->profilePhoto();
-      $response['photo_url'] = $profilePhoto ? $profilePhoto->url() : null;
+      $response['profile']['photo_url'] = $profilePhoto ? $profilePhoto->url() : null;
     }
 
     return response()->json($response);

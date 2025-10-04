@@ -10,11 +10,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -32,6 +33,7 @@ class User extends Authenticatable
         'provider',
         'provider_id',
         'avatar',
+        'is_admin',
     ];
 
     /**
@@ -55,7 +57,17 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_admin' => 'boolean',
+            'deleted_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Check if the user is an admin.
+     */
+    public function isAdmin(): bool
+    {
+        return (bool) ($this->user_type === 'admin' ?? false);
     }
 
     public function student(): HasOne
@@ -87,6 +99,7 @@ class User extends Authenticatable
 
     public function getProfileAttribute()
     {
+        if($this->isAdmin()) return null;
         $profile = $this->isStudent() ? $this->student : $this->teacher;
 
         // For teachers, we'll handle photo_url in the controller/API response

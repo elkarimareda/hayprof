@@ -17,27 +17,27 @@ class StudentController extends Controller
       $query->where('country', $request->country);
     }
 
-    $students = $query->paginate(12);
+    // Get all students (no pagination)
+    $students = $query->get();
 
     // Format the response to include user data and media URLs
-    $formattedStudents = $students->getCollection()->map(function ($student) {
+    $formattedStudents = $students->map(function ($student) {
       $user = $student->user;
       $profilePhoto = $student->medias()->where('media_purpose', 'profile_photo')->first();
 
       return [
         'id' => $student->id,
         'name' => $user->name,
+        'phone' => $user->phone_number,
         'email' => $user->email,
-        'country' => $student->country ?? 'Not specified',
+        'country' => $student->country,
         'photo_url' => $profilePhoto ? $profilePhoto->url() : null,
         'created_at' => $student->created_at,
       ];
     });
 
-    $students->setCollection($formattedStudents);
-
     return response()->json([
-      'students' => $students
+      'students' => $formattedStudents
     ]);
   }
 
@@ -56,8 +56,6 @@ class StudentController extends Controller
     $user = $student->user;
 
     // Get specific media URLs
-    $profilePhoto = $student->medias()->where('media_purpose', 'profile_photo')->first();
-
     $response = [
       'id' => $user->id,
       'name' => $user->name,
@@ -74,7 +72,7 @@ class StudentController extends Controller
         'updated_at' => $student->updated_at,
 
         // Media URLs
-        'photo_url' => $profilePhoto ? $profilePhoto->url() : null,
+        'photo_url' => $student->profilePhotoUrl(),
       ]
     ];
 

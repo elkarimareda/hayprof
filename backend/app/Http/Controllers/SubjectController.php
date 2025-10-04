@@ -17,10 +17,15 @@ class SubjectController extends Controller
 
         // Filter by active status
         if ($request->has('active')) {
+            // Explicit filter: return subjects where is_active matches requested boolean
             $query->where('is_active', $request->boolean('active'));
         } else {
-            // Default to active subjects only
-            $query->active();
+            // Default behavior: include subjects marked active OR subjects with NULL is_active
+            // (helps with legacy rows that may not have the flag set)
+            $query->where(function ($q) {
+                $q->where('is_active', true)->orWhere('is_active',false)
+                  ->orWhereNull('is_active');
+            });
         }
 
         // Search by name or code
@@ -80,8 +85,7 @@ class SubjectController extends Controller
             'description' => 'nullable|string',
             'is_active' => 'boolean'
         ]);
-
-        $subject->update($validated);
+    $subject->update($validated);
 
         return response()->json([
             'message' => 'Subject updated successfully',

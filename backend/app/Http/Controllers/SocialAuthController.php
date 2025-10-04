@@ -252,7 +252,14 @@ class SocialAuthController extends Controller
     {
         try {
             $user = $request->user();
-            
+
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Authentication required to link accounts'
+                ], 401);
+            }
+
             // Check if user already has this provider linked
             if ($user->hasSocialAccount($provider)) {
                 return response()->json([
@@ -298,7 +305,14 @@ class SocialAuthController extends Controller
     {
         try {
             $user = $request->user();
-            
+
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Authentication required to unlink accounts'
+                ], 401);
+            }
+
             $socialAccount = $user->getSocialAccount($provider);
             
             if (!$socialAccount) {

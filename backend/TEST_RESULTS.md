@@ -67,8 +67,8 @@ StudentEnrolled::dispatch(\$enrollment);
 ### Verify Meetings Created
 ```bash
 php artisan tinker --execute="
-use App\Models\BigBlueButtonMeeting;
-\$meetings = BigBlueButtonMeeting::with(['course', 'teacher', 'student'])->get();
+use App\Models\Meeting;
+\$meetings = Meeting::with(['course', 'teacher', 'student'])->get();
 echo 'Total meetings: ' . \$meetings->count();
 "
 ```

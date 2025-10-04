@@ -171,9 +171,9 @@ class Teacher extends Model
         return $this->morphMany(Media::class, 'mediable');
     }
 
-    public function bigBlueButtonMeetings(): HasMany
+    public function meetings(): HasMany
     {
-        return $this->hasMany(BigBlueButtonMeeting::class);
+        return $this->hasMany(Meeting::class);
     }
 
     // Get specific media types
@@ -257,7 +257,44 @@ class Teacher extends Model
     public function getReviewsWithStudents()
     {
         return $this->approvedReviews()
-            ->with(['student.user', 'course'])
+            ->with(['student.user', 'course','student.medias' => function ($query) {
+                $query->where('type', 'profile_photo');
+            }])
             ->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Get all enrolled students for a specific course taught by this teacher
+     */
+    public function getStudentsByCourse(int $courseId)
+    {
+        // First verify the course belongs to this teacher
+        $course = $this->courses()->where('id', $courseId)->first();
+        
+        if (!$course) {
+            return collect(); // Return empty collection if course doesn't belong to teacher
+        }
+
+        return \App\Models\Student::whereHas('enrollments', function ($query) use ($courseId) {
+            $query->where('course_id', $courseId)
+                  ->where('status', 'confirmed');
+        })->with(['user', 'medias' => function ($query) {
+            $query->where('media_purpose', 'profile_photo');
+        }])->get();
+    }
+
+    /**
+     * Get all enrolled students across all courses taught by this teacher
+     */
+    public function getAllEnrolledStudents()
+    {
+        $courseIds = $this->courses()->pluck('id');
+
+        return \App\Models\Student::whereHas('enrollments', function ($query) use ($courseIds) {
+            $query->whereIn('course_id', $courseIds)
+                  ->where('status', 'confirmed');
+        })->with(['user', 'medias' => function ($query) {
+            $query->where('media_purpose', 'profile_photo');
+        }])->distinct()->get();
     }
 }

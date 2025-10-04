@@ -130,7 +130,7 @@ class CourseController extends Controller
         'subject' => $course->subject,
         'proficiency_level' => $course->proficiency_level ?? null,
         'description' => $course->description,
-        'thumbnail' => $course->thumbnail_url ?? null,
+        'thumbnail_url' => $course->thumbnail_url ?? null,
         'price_per_student' => $course->price_per_student,
         'count_session' => $course->count_session,
         'duration_session' => $course->duration_session,
@@ -146,108 +146,102 @@ class CourseController extends Controller
 
   public function index(Request $request)
   {
-    $teacher = Auth::user()->teacher;
-    if (!$teacher) {
-      return response()->json(['message' => 'Teacher profile not found'], 404);
+    // Build base query and allow filtering via query params
+    // status: pending | validated | all (default: all)
+    $status = $request->get('status');
+
+    $query = Course::query();
+
+    if ($status === 'pending') {
+      $query->pendingValidation();
+    } elseif ($status === 'validated') {
+      $query->validated();
     }
 
-    $courses = $teacher->courses()
-      ->with(['subject', 'schedules'])
-      ->active()
-      ->orderBy('created_at', 'desc')
-      ->get();
+    // Filter by subject if provided
+    if ($request->has('subject_id')) {
+      $query->where('subject_id', $request->subject_id);
+    }
+
+    // Eager load common relations
+    $query->with(['subject', 'schedules', 'teacher.user', 'medias']);
+
+    $courses = $query->orderBy('created_at', 'desc')->get()->map(function ($course) {
+      return [
+        'id' => $course->id,
+        'title' => $course->title,
+        'subject' => $course->subject ? [
+          'id' => $course->subject->id,
+          'name' => $course->subject->name,
+          'code' => $course->subject->code,
+        ] : null,
+        'proficiency_level' => $course->proficiency_level ?? null,
+        'description' => $course->description,
+        'thumbnail_url' => $course->thumbnail_url ?? null,
+        'price_per_student' => $course->price_per_student,
+        'count_session' => $course->count_session,
+        'duration_session' => $course->duration_session,
+        'min_students' => $course->min_students,
+        'max_students' => $course->max_students,
+        'course_date' => $course->course_date,
+        'schedules' => $course->schedules,
+        'teacher' => $course->teacher ? [
+          'id' => $course->teacher->id,
+          'first_name' => $course->teacher->first_name ?? null,
+          'last_name' => $course->teacher->last_name ?? null,
+          'name' => $course->teacher->user->name ?? null,
+          'email' => $course->teacher->user->email ?? null,
+        ] : null,
+        'is_active' => $course->is_active,
+        'is_validated' => $course->is_validated,
+        'created_at' => $course->created_at,
+      ];
+    });
 
     return response()->json([
-      'courses' => $courses->map(function ($course) {
-        return [
-          'id' => $course->id,
-          'title' => $course->title,
-          'subject' => $course->subject,
-          'proficiency_level' => $course->proficiency_level ?? null,
-          'description' => $course->description,
-          'thumbnail' => $course->thumbnail_url ?? null,
-          'price_per_student' => $course->price_per_student,
-          'count_session' => $course->count_session,
-          'duration_session' => $course->duration_session,
-          'min_students' => $course->min_students,
-          'max_students' => $course->max_students,
-          'course_date' => $course->course_date,
-          'schedules' => $course->schedules,
-          'is_active' => $course->is_active,
-          'is_validated' => $course->is_validated,
-          'created_at' => $course->created_at,
-        ];
-      })
+      'courses' => $courses
     ]);
   }
 
-  // Admin methods for course validation
-  public function pendingValidation(Request $request)
-  {
-    $courses = Course::with(['subject', 'schedules', 'teacher.user'])
-      ->pendingValidation()
-      ->orderBy('created_at', 'asc')
-      ->get();
-
-    return response()->json([
-      'courses' => $courses->map(function ($course) {
-        return [
-          'id' => $course->id,
-          'title' => $course->title,
-          'subject' => $course->subject,
-          'proficiency_level' => $course->proficiency_level ?? null,
-          'description' => $course->description,
-          'thumbnail' => $course->thumbnail_url ?? null,
-          'price_per_student' => $course->price_per_student,
-          'count_session' => $course->count_session,
-          'duration_session' => $course->duration_session,
-          'min_students' => $course->min_students,
-          'max_students' => $course->max_students,
-          'course_date' => $course->course_date,
-          'schedules' => $course->schedules,
-          'teacher' => [
-            'id' => $course->teacher->id,
-            'name' => $course->teacher->user->name ?? 'Unknown',
-            'email' => $course->teacher->user->email ?? '',
-          ],
-          'is_active' => $course->is_active,
-          'is_validated' => $course->is_validated,
-          'created_at' => $course->created_at,
-        ];
-      })
-    ]);
-  }
-
-  public function validateCourse(Request $request, Course $course)
+  /**
+   * Review a course: validate or reject based on `action`.
+   * Request body:
+   *  - action: required, one of [validate,reject]
+   *  - validation_notes: required when action=reject, optional otherwise
+   */
+  public function reviewCourse(Request $request, Course $course)
   {
     $validated = $request->validate([
       'validation_notes' => 'nullable|string|max:1000',
     ]);
 
-    $course->validate(Auth::user(), $validated['validation_notes'] ?? null);
+    // Prefer explicit action from body, then check route default (set in routes/api.php)
+    $action = $request->route('action') ?? null;
+
+    if (!$action) {
+      return response()->json([
+        'message' => 'The action field is required.',
+        'errors' => ['action' => ['The action field is required.']]
+      ], 422);
+    }
+
+    if ($action === 'reject') {
+      if (empty($validated['validation_notes'])) {
+        return response()->json([
+          'message' => 'Validation notes are required when rejecting a course',
+          'errors' => ['validation_notes' => ['Validation notes are required when rejecting a course']]
+        ], 422);
+      }
+
+      $course->reject(Auth::user(), $validated['validation_notes']);
+      $message = 'Course rejected';
+    } else {
+      $course->validate(Auth::user(), $validated['validation_notes'] ?? null);
+      $message = 'Course validated successfully';
+    }
 
     return response()->json([
-      'message' => 'Course validated successfully',
-      'course' => [
-        'id' => $course->id,
-        'title' => $course->title,
-        'is_validated' => $course->is_validated,
-        'validated_at' => $course->validated_at,
-        'validation_notes' => $course->validation_notes,
-      ]
-    ]);
-  }
-
-  public function rejectCourse(Request $request, Course $course)
-  {
-    $validated = $request->validate([
-      'validation_notes' => 'required|string|max:1000',
-    ]);
-
-    $course->reject(Auth::user(), $validated['validation_notes']);
-
-    return response()->json([
-      'message' => 'Course rejected',
+      'message' => $message,
       'course' => [
         'id' => $course->id,
         'title' => $course->title,
@@ -270,6 +264,7 @@ class CourseController extends Controller
       },
       'teacher.reviews.student.user',
       'schedules',
+      'meetings',
       'medias',
       'reviews' => function($query) {
         $query->approved()->with('student.user')->latest();
@@ -311,7 +306,6 @@ class CourseController extends Controller
         ],
       ];
     });
-
     $response = [
       'id' => $course->id,
       'title' => $course->title,
@@ -374,6 +368,10 @@ class CourseController extends Controller
         ];
       }),
 
+      'meetings' => $course->meetings->map(function ($meeting) {
+        return $meeting;
+      }),
+
       // Media
       'thumbnail_url' => $courseThumbnail ? $courseThumbnail->url() : null,
 
@@ -388,45 +386,4 @@ class CourseController extends Controller
     return response()->json($response);
   }
 
-  public function validated(Request $request)
-  {
-    $query = Course::validated()->with(['subject', 'teacher.user', 'medias']);
-
-    // Filter by subject if provided
-    if ($request->has('subject_id')) {
-      $query->where('subject_id', $request->subject_id);
-    }
-    $courses = $query->get()->map(function ($course) {
-      return [
-        'id' => $course->id,
-        'title' => $course->title,
-        'subject' => [
-          'id' => $course->subject->id,
-          'name' => $course->subject->name,
-          'code' => $course->subject->code,
-        ],
-        'proficiency_level' => $course->proficiency_level ?? null,
-        'description' => $course->description,
-        'thumbnail_url' => $course->thumbnail_url,
-        'price_per_student' => $course->price_per_student,
-        'count_session' => $course->count_session,
-        'duration_session' => $course->duration_session,
-        'min_students' => $course->min_students,
-        'max_students' => $course->max_students,
-        'course_date' => $course->course_date,
-        'teacher' => [
-          'id' => $course->teacher->id,
-          'first_name' => $course->teacher->first_name,
-          'last_name' => $course->teacher->last_name,
-        ],
-        'is_active' => $course->is_active,
-        'is_validated' => $course->is_validated,
-        'created_at' => $course->created_at,
-      ];
-    });
-
-    return response()->json([
-      'courses' => $courses
-    ]);
-  }
 }

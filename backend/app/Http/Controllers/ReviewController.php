@@ -19,7 +19,7 @@ class ReviewController extends Controller
     {
         // Get student's profile photo
         $studentPhoto = $review->student->medias()
-            ->where('type', 'profile_photo')
+            ->where('media_purpose', 'profile_photo')
             ->first();
 
         return [
@@ -34,7 +34,7 @@ class ReviewController extends Controller
                 'id' => $review->student->id,
                 'name' => trim(($review->student->user->first_name ?? '') . ' ' . ($review->student->user->last_name ?? '')) ?: ($review->student->user->name ?? 'Anonymous'),
                 'user_id' => $review->student->user->id,
-                'photo' => $studentPhoto ? $studentPhoto->url : null,
+                'photo_url' => $studentPhoto ? $studentPhoto->url : null,
             ],
             'course' => $review->course ? [
                 'id' => $review->course->id,
@@ -49,19 +49,29 @@ class ReviewController extends Controller
     public function getTeacherReviews(Request $request, int $teacherId): JsonResponse
     {
         $teacher = Teacher::findOrFail($teacherId);
+    
+        $perPage = $request->get('per_page', 10);
+        $rating = $request->get('rating'); // Filter by specific rating
+        $verified = $request->get('verified'); // Filter by verified reviews only
         
-        $reviews = $teacher->getReviewsWithStudents()
-            ->paginate($request->get('per_page', 10));
+        $query = $teacher->approvedReviews()
+        ->with(['student.user', 'course.subject','student.medias']);
+        
+        // Apply filters
+        if ($rating) {
+        $query->where('rating', $rating);
+        }
+        
+        if ($verified === 'true') {
+        $query->where('is_verified', true);
+        }
+        
+        $reviews = $query->orderBy('created_at', 'desc')
+        ->paginate($perPage);
 
         $formattedReviews = $reviews->getCollection()->map(function ($review) {
             return $this->formatReview($review);
         });
-
-        $statistics = [
-            'average_rating' => $teacher->getAverageRating(),
-            'total_reviews' => $teacher->getTotalReviews(),
-            'rating_distribution' => $teacher->getRatingDistribution()
-        ];
 
         return response()->json([
             'reviews' => $formattedReviews,
@@ -71,7 +81,6 @@ class ReviewController extends Controller
                 'per_page' => $reviews->perPage(),
                 'total' => $reviews->total(),
             ],
-            'statistics' => $statistics
         ]);
     }
 

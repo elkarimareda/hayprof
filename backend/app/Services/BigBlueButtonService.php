@@ -42,8 +42,8 @@ readonly class BigBlueButtonService
         $params = [...$defaultParams, ...$params];
         
         // Required parameters validation
-        if (!isset($params['name']) || !isset($params['meetingID'])) {
-            throw new InvalidArgumentException('Meeting name and meetingID are required');
+        if (!isset($params['meetingID'])) {
+            throw new InvalidArgumentException('Meeting ID is required');
         }
 
         $response = $this->makeApiCall('create', $params);

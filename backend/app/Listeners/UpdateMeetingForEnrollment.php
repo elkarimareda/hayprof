@@ -3,7 +3,7 @@
 namespace App\Listeners;
 
 use App\Events\StudentEnrolled;
-use App\Models\BigBlueButtonMeeting;
+use App\Models\Meeting;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
 class UpdateMeetingForEnrollment implements ShouldQueue
@@ -19,10 +19,8 @@ class UpdateMeetingForEnrollment implements ShouldQueue
             return;
         }
 
-        // Find existing meetings for this course that don't have a student assigned yet
-        $meetings = BigBlueButtonMeeting::where('course_id', $course->id)
-            ->where('teacher_id', $course->teacher_id)
-            ->whereNull('student_id')
+        // Find existing meetings for this course
+        $meetings = Meeting::where('course_id', $course->id)
             ->where('status', 'scheduled')
             ->get();
 
@@ -34,12 +32,11 @@ class UpdateMeetingForEnrollment implements ShouldQueue
         } else {
             // If meetings exist, assign the first available one to this student
             $meeting = $meetings->first();
+            // Update metadata only; don't store student_id on meeting
             $meeting->update([
-                'student_id' => $student->id,
-                'name' => "{$course->title} - {$student->user->first_name} {$student->user->last_name}",
                 'metadata' => array_merge($meeting->metadata ?? [], [
-                    'student_name' => $student->user->first_name . ' ' . $student->user->last_name,
                     'enrollment_id' => $enrollment->id,
+                    'student_name' => $student->user->first_name . ' ' . $student->user->last_name,
                 ])
             ]);
         }
@@ -52,27 +49,25 @@ class UpdateMeetingForEnrollment implements ShouldQueue
             $attendeePassword = \Illuminate\Support\Str::random(12);
             $moderatorPassword = \Illuminate\Support\Str::random(12);
 
-            BigBlueButtonMeeting::create([
+            Meeting::create([
                 'meeting_id' => $meetingId,
-                'name' => "{$course->title} - {$student->user->first_name} {$student->user->last_name}",
                 'attendee_password' => $attendeePassword,
                 'moderator_password' => $moderatorPassword,
-                'created_by' => $course->teacher->user_id,
+                'created_by' => $course->teacher->user_id ?? null,
                 'course_id' => $course->id,
-                'teacher_id' => $course->teacher_id,
-                'student_id' => $student->id,
+                'schedule_id' => $schedule->id ?? null,
                 'is_recording' => true,
-                'max_participants' => 2, // Just teacher and student
-                'duration' => $schedule->time_of_session, // Already in minutes
-                'scheduled_at' => $schedule->datetime_scheduled,
+                // scheduled_at removed from schema; keep scheduled datetime in metadata if needed
+                // 'scheduled_at' => $schedule->datetime_scheduled,
                 'status' => 'scheduled',
                 'metadata' => [
                     'auto_created' => true,
                     'auto_created_for_enrollment' => true,
                     'schedule_id' => $schedule->id,
                     'course_title' => $course->title,
-                    'teacher_name' => $course->teacher->first_name . ' ' . $course->teacher->last_name,
                     'student_name' => $student->user->first_name . ' ' . $student->user->last_name,
+                    // Generate standardized meeting name
+                    'meeting_name' => Meeting::generateNameForCourse($course, $meetingId),
                 ]
             ]);
         }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Course extends Model
 {
+  use SoftDeletes;
   protected $fillable = [
     'teacher_id',
     'subject_id',
@@ -38,6 +40,7 @@ class Course extends Model
     'is_active' => 'boolean',
     'is_validated' => 'boolean',
     'validated_at' => 'datetime',
+    'deleted_at' => 'datetime',
   ];
 
   // Relationships
@@ -82,9 +85,9 @@ class Course extends Model
     return $this->belongsTo(User::class, 'validated_by');
   }
 
-  public function bigBlueButtonMeetings(): HasMany
+  public function meetings(): HasMany
   {
-    return $this->hasMany(BigBlueButtonMeeting::class);
+    return $this->hasMany(Meeting::class);
   }
 
   public function enrollments(): HasMany

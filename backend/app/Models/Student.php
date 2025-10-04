@@ -31,10 +31,6 @@ class Student extends Model
         return $this->hasMany(Review::class);
     }
 
-    public function bigBlueButtonMeetings(): HasMany
-    {
-        return $this->hasMany(BigBlueButtonMeeting::class);
-    }
 
     public function enrollments(): HasMany
     {
@@ -67,4 +63,14 @@ class Student extends Model
         
         return $query->exists();
     }
+
+    public function profilePhoto()
+    {
+        return $this->medias()->profilePhotos()->latest()->first();
+    }
+    public function profilePhotoUrl(): ?string
+    {
+        return $this->profilePhoto()?->url();
+    }
+
 }

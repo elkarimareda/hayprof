@@ -22,6 +22,7 @@ class TeacherController extends Controller
 
     $teachers = $query->get()->map(function ($teacher) {
       $profilePhoto = $teacher->medias()->where('media_purpose', 'profile_photo')->first();
+      $introVideo = $teacher->medias()->where('media_purpose', 'introduction_video')->first();
 
       return [
         'id' => $teacher->id,
@@ -33,6 +34,7 @@ class TeacherController extends Controller
         'biography' => $teacher->biography,
         'onboarding_completed' => $teacher->onboarding_completed,
         'photo_url' => $profilePhoto ? $profilePhoto->url() : null,
+        'video_url' => $introVideo ? $introVideo->url() : null,
         'user' => [
           'id' => $teacher->user->id,
           'name' => $teacher->user->name,
@@ -61,8 +63,10 @@ class TeacherController extends Controller
           ->pluck('subject.name')
           ->unique()
           ->values(),
-        'average_rating' => $teacher->getAverageRating(),
-        'total_reviews' => $teacher->getTotalReviews(),
+        'reviews' => [
+          'average_rating' => $teacher->getAverageRating(),
+          'total_reviews' => $teacher->getTotalReviews(),
+        ]
       ];
     });
 
@@ -120,6 +124,7 @@ class TeacherController extends Controller
         // Media URLs
         'photo_url' => $profilePhoto ? $profilePhoto->url() : null,
         'video_url' => $introVideo ? $introVideo->url() : null,
+        'thumbnail_video_url' => $introVideo ? $introVideo->thumbnail_path : null,
 
         // Related data
         'certifications' => $teacher->certifications->map(function ($cert) {
@@ -199,6 +204,7 @@ class TeacherController extends Controller
           'total_reviews' => $teacher->getTotalReviews(),
           'rating_distribution' => $teacher->getRatingDistribution(),
         ],
+        'students' => $teacher->getAllEnrolledStudents(),
 
         'availabilities' => $teacher->availabilities->groupBy('day_of_week')->map(function ($daySlots, $day) {
           return $daySlots->map(function ($slot) {
@@ -214,94 +220,5 @@ class TeacherController extends Controller
     ];
 
     return response()->json($response);
-  }
-
-  public function getAllLanguages()
-  {
-    $languages = \App\Models\Language::where('is_active', true)
-      ->orderBy('name')
-      ->get()
-      ->map(function ($language) {
-        return [
-          'id' => $language->id,
-          'name' => $language->name,
-          'code' => $language->code,
-          'native_name' => $language->native_name,
-        ];
-      });
-
-    return response()->json([
-      'languages' => $languages
-    ]);
-  }
-
-  public function getTeacherReviews(Request $request, $teacherId)
-  {
-    $teacher = Teacher::findOrFail($teacherId);
-    
-    $perPage = $request->get('per_page', 10);
-    $rating = $request->get('rating'); // Filter by specific rating
-    $verified = $request->get('verified'); // Filter by verified reviews only
-    
-    $query = $teacher->approvedReviews()
-      ->with(['student.user', 'course.subject']);
-    
-    // Apply filters
-    if ($rating) {
-      $query->where('rating', $rating);
-    }
-    
-    if ($verified === 'true') {
-      $query->where('is_verified', true);
-    }
-    
-    $reviews = $query->orderBy('created_at', 'desc')
-      ->paginate($perPage);
-
-    // Format the reviews data
-    $formattedReviews = $reviews->getCollection()->map(function ($review) {
-      return [
-        'id' => $review->id,
-        'rating' => $review->rating,
-        'comment' => $review->comment,
-        'is_verified' => $review->is_verified,
-        'created_at' => $review->created_at,
-        'student' => [
-          'id' => $review->student->id,
-          'name' => $review->student->user->name,
-          'first_name' => $review->student->user->first_name ?? null,
-          'last_name' => $review->student->user->last_name ?? null,
-        ],
-        'course' => $review->course ? [
-          'id' => $review->course->id,
-          'title' => $review->course->title,
-          'subject' => [
-            'id' => $review->course->subject->id,
-            'name' => $review->course->subject->name,
-          ]
-        ] : null,
-      ];
-    });
-
-    // Get review statistics
-    $statistics = [
-      'average_rating' => $teacher->getAverageRating(),
-      'total_reviews' => $teacher->getTotalReviews(),
-      'rating_distribution' => $teacher->getRatingDistribution(),
-      'verified_reviews_count' => $teacher->approvedReviews()->where('is_verified', true)->count(),
-    ];
-
-    return response()->json([
-      'reviews' => [
-        'data' => $formattedReviews,
-        'current_page' => $reviews->currentPage(),
-        'last_page' => $reviews->lastPage(),
-        'per_page' => $reviews->perPage(),
-        'total' => $reviews->total(),
-        'from' => $reviews->firstItem(),
-        'to' => $reviews->lastItem(),
-      ],
-      'statistics' => $statistics
-    ]);
   }
 }

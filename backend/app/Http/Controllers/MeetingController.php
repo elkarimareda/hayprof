@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\BigBlueButtonService;
-use App\Models\BigBlueButtonMeeting;
+use App\Models\Meeting;
 use App\Models\Course;
 use App\Models\Teacher;
 use App\Models\Student;
@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Exception;
 
-class BigBlueButtonController extends Controller
+class MeetingController extends Controller
 {
     public function __construct(
         private readonly BigBlueButtonService $bbbService
@@ -25,7 +25,6 @@ class BigBlueButtonController extends Controller
     public function createMeeting(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
             'meeting_id' => ['nullable', 'string', 'max:255', 'regex:/^[a-zA-Z0-9_-]+$/'],
             'attendee_password' => ['nullable', 'string', 'min:6', 'max:50'],
             'moderator_password' => ['nullable', 'string', 'min:6', 'max:50'],
@@ -36,18 +35,23 @@ class BigBlueButtonController extends Controller
             'max_participants' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'duration' => ['nullable', 'integer', 'min:0', 'max:1440'], // Max 24 hours
             'course_id' => ['nullable', 'exists:courses,id'],
-            'teacher_id' => ['nullable', 'exists:teachers,id'],
-            'student_id' => ['nullable', 'exists:students,id'],
-            'scheduled_at' => ['nullable', 'date', 'after:now'],
+            'schedule_id' => ['nullable', 'exists:course_schedules,id'],
         ]);
 
         try {
             $meetingId = $validated['meeting_id'] ?? Str::uuid()->toString();
             $attendeePassword = $validated['attendee_password'] ?? Str::random(12);
             $moderatorPassword = $validated['moderator_password'] ?? Str::random(12);
+            // Determine meeting name (clients may send 'name' or 'meeting_name'); fallback to meeting ID
+            $meetingName = $validated['name'] ?? $validated['meeting_name'] ?? $meetingId;
+
+            // If a course_id is provided, prefer a standardized name using teacher and subject
+            if (!empty($validated['course_id'])) {
+                $course = Course::with(['teacher', 'subject'])->find($validated['course_id']);
+                $meetingName = Meeting::generateNameForCourse($course, $meetingName);
+            }
 
             $params = [
-                'name' => $validated['name'],
                 'meetingID' => $meetingId,
                 'attendeePW' => $attendeePassword,
                 'moderatorPW' => $moderatorPassword,
@@ -71,22 +75,19 @@ class BigBlueButtonController extends Controller
             $result = $this->bbbService->createMeeting($params);
 
             if ($result['returncode'] === 'SUCCESS') {
-                // Save meeting to database
-                $meeting = BigBlueButtonMeeting::create([
+                // Save meeting to database (schema no longer stores name/teacher/student)
+                $meeting = Meeting::create([
                     'meeting_id' => $meetingId,
-                    'name' => $validated['name'],
                     'attendee_password' => $attendeePassword,
                     'moderator_password' => $moderatorPassword,
                     'created_by' => auth()->id() ?? 1, // Fallback to user ID 1 if not authenticated
                     'course_id' => $validated['course_id'] ?? null,
-                    'teacher_id' => $validated['teacher_id'] ?? null,
-                    'student_id' => $validated['student_id'] ?? null,
                     'is_recording' => $validated['record'] ?? false,
                     'max_participants' => $validated['max_participants'] ?? null,
                     'duration' => $validated['duration'] ?? null,
-                    'scheduled_at' => isset($validated['scheduled_at']) ? $validated['scheduled_at'] : now(),
                     'status' => 'scheduled',
                     'metadata' => [
+                        'meeting_name' => $meetingName,
                         'welcome_message' => $validated['welcome_message'] ?? null,
                         'auto_start_recording' => $validated['auto_start_recording'] ?? false,
                         'allow_start_stop_recording' => $validated['allow_start_stop_recording'] ?? true,
@@ -97,7 +98,7 @@ class BigBlueButtonController extends Controller
                 return response()->json([
                     'success' => true,
                     'meeting_id' => $meetingId,
-                    'meeting' => $meeting->load(['course', 'teacher', 'student']),
+                    'meeting' => $meeting->load(['course', 'creator']),
                     'attendee_password' => $attendeePassword,
                     'moderator_password' => $moderatorPassword,
                     'data' => $result
@@ -132,84 +133,156 @@ class BigBlueButtonController extends Controller
         $validated = $request->validate([
             'meeting_id' => ['required', 'string', 'max:255'],
             'user_name' => ['required', 'string', 'max:255'],
-            'password' => ['required', 'string', 'max:50'],
+            // don't accept arbitrary passwords from clients — use stored passwords
+            'password' => ['nullable', 'string', 'max:50'],
             'is_moderator' => ['nullable', 'boolean'],
             'user_id' => ['nullable', 'string', 'max:255'],
         ]);
 
         try {
-            // First check if meeting exists and is running
             $meetingId = $validated['meeting_id'];
-            $isRunning = $this->bbbService->isMeetingRunning($meetingId);
-            
-            if (!$isRunning) {
-                // Try to get meeting info to check if it exists
-                try {
-                    // For moderators, we can try to start the meeting
-                    if ($validated['is_moderator'] ?? false) {
-                        // Find the meeting in database to get creation parameters
-                        $dbMeeting = BigBlueButtonMeeting::where('meeting_id', $meetingId)->first();
-                        
-                        if ($dbMeeting) {
-                            // Try to recreate the meeting if it's a moderator
-                            $createParams = [
-                                'name' => $dbMeeting->name,
-                                'meetingID' => $dbMeeting->meeting_id,
-                                'attendeePW' => $dbMeeting->attendee_password,
-                                'moderatorPW' => $dbMeeting->moderator_password,
-                                'record' => $dbMeeting->is_recording ? 'true' : 'false',
-                            ];
-                            
-                            if ($dbMeeting->max_participants) {
-                                $createParams['maxParticipants'] = $dbMeeting->max_participants;
-                            }
-                            
-                            if ($dbMeeting->duration) {
-                                $createParams['duration'] = $dbMeeting->duration;
-                            }
-                            
-                            $this->bbbService->createMeeting($createParams);
-                            
-                            // Update meeting status to running
-                            $dbMeeting->update(['status' => 'running']);
-                        }
-                    } else {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Meeting is not currently running. Please wait for the teacher to start the meeting.',
-                            'code' => 'MEETING_NOT_RUNNING'
-                        ], 400);
+
+            // Always fetch meeting data from our DB to determine correct passwords/params
+            $dbMeeting = Meeting::with(['course.teacher'])->where('meeting_id', $meetingId)->first();
+            if (!$dbMeeting) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Meeting not found in database',
+                    'code' => 'MEETING_NOT_FOUND'
+                ], 404);
+            }
+
+            $isModerator = $validated['is_moderator'] ?? false;
+
+            // Authorization: only the course teacher or a confirmed student may join
+            $user = auth()->user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authentication required to join meeting',
+                    'code' => 'AUTH_REQUIRED'
+                ], 401);
+            }
+
+            $isTeacher = false;
+            $isStudent = false;
+
+            // Check if the user is the teacher for the course
+            if ($dbMeeting->course && $dbMeeting->course->teacher) {
+                // Teacher.user_id points to users.id
+                if ($dbMeeting->course->teacher->user_id === $user->id) {
+                    $isTeacher = true;
+                }
+            }
+
+            // Check if the user is a confirmed student enrollment for the course
+            if (!$isTeacher) {
+                $student = \App\Models\Student::where('user_id', $user->id)->first();
+                if ($student && $dbMeeting->course_id) {
+                    $enrolled = \App\Models\CourseEnrollment::where('course_id', $dbMeeting->course_id)
+                        ->where('student_id', $student->id)
+                        ->where('status', 'confirmed')
+                        ->exists();
+
+                    if ($enrolled) {
+                        $isStudent = true;
                     }
-                } catch (Exception $e) {
+                }
+            }
+
+            if (!($isTeacher || $isStudent)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You are not authorized to join this meeting',
+                    'code' => 'NOT_AUTHORIZED'
+                ], 403);
+            }
+
+            // Determine the password to use based on role — do not trust client-supplied password
+            $passwordToUse = $isModerator ? $dbMeeting->moderator_password : $dbMeeting->attendee_password;
+
+            // Check if meeting is running
+            $isRunning = $this->bbbService->isMeetingRunning($meetingId);
+
+            if (!$isRunning) {
+                if (!$isModerator) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Meeting not found or has ended. Please check with your teacher.',
-                        'code' => 'MEETING_NOT_FOUND'
-                    ], 404);
+                        'message' => 'Meeting is not currently running. Please wait for the teacher to start the meeting.',
+                        'code' => 'MEETING_NOT_RUNNING'
+                    ], 400);
+                }
+
+                // Try to recreate the meeting using stored params (include meeting name from metadata)
+                $createParams = [
+                    'meetingID' => $dbMeeting->meeting_id,
+                    'name' => $dbMeeting->metadata['meeting_name'] ?? $dbMeeting->meeting_id,
+                    'attendeePW' => $dbMeeting->attendee_password,
+                    'moderatorPW' => $dbMeeting->moderator_password,
+                    'record' => $dbMeeting->is_recording ? 'true' : 'false',
+                ];
+
+                if ($dbMeeting->max_participants) {
+                    $createParams['maxParticipants'] = $dbMeeting->max_participants;
+                }
+
+                if ($dbMeeting->duration) {
+                    $createParams['duration'] = $dbMeeting->duration;
+                }
+
+                if ($dbMeeting->metadata && isset($dbMeeting->metadata['welcome_message'])) {
+                    $createParams['welcome'] = $dbMeeting->metadata['welcome_message'];
+                }
+
+                $createResult = $this->bbbService->createMeeting($createParams);
+
+                // If BBB explicitly refuses because the meeting was forcibly ended, surface that error
+                if (isset($createResult['returncode']) && $createResult['returncode'] === 'FAILED') {
+                    $msg = $createResult['message'] ?? 'Failed to create meeting on server';
+                    if (str_contains(strtolower($msg), 'forcibly')) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'This meeting has been forcibly ended on the server and cannot be restarted. Please contact support or create a new meeting.',
+                            'code' => 'MEETING_FORCIBLY_ENDED',
+                            'detail' => $msg
+                        ], 400);
+                    }
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => $msg,
+                        'code' => 'MEETING_CREATE_FAILED',
+                        'detail' => $createResult
+                    ], 400);
+                }
+
+                // Mark in DB as running if creation succeeded
+                if (isset($createResult['returncode']) && $createResult['returncode'] === 'SUCCESS') {
+                    $dbMeeting->update(['status' => 'running']);
                 }
             }
 
             $options = [];
-            
             if (isset($validated['user_id'])) {
                 $options['userID'] = $validated['user_id'];
             }
 
-            if ($validated['is_moderator'] ?? false) {
+            if ($isModerator) {
                 $options['role'] = 'MODERATOR';
             }
 
+            // Build join URL using the stored password for the role
             $joinUrl = $this->bbbService->joinMeeting(
-                $validated['meeting_id'],
+                $meetingId,
                 $validated['user_name'],
-                $validated['password'],
+                $passwordToUse,
                 $options
             );
 
             return response()->json([
                 'success' => true,
                 'join_url' => $joinUrl,
-                'meeting_id' => $validated['meeting_id']
+                'meeting_id' => $meetingId
             ]);
 
         } catch (Exception $e) {
@@ -292,25 +365,21 @@ class BigBlueButtonController extends Controller
             ]);
 
             // Query database meetings
-            $query = BigBlueButtonMeeting::with(['course', 'teacher.user', 'student.user', 'creator']);
+            $query = Meeting::with(['course', 'creator']);
 
             if (isset($validated['course_id'])) {
                 $query->forCourse($validated['course_id']);
             }
 
-            if (isset($validated['teacher_id'])) {
-                $query->forTeacher($validated['teacher_id']);
-            }
-
-            if (isset($validated['student_id'])) {
-                $query->forStudent($validated['student_id']);
+            if (isset($validated['schedule_id'])) {
+                $query->forSchedule($validated['schedule_id']);
             }
 
             if (isset($validated['status'])) {
                 $query->where('status', $validated['status']);
             }
 
-            $meetings = $query->orderBy('scheduled_at', 'desc')->get();
+            $meetings = $query->orderBy('created_at', 'desc')->get();
 
             $response = [
                 'success' => true,
@@ -328,7 +397,8 @@ class BigBlueButtonController extends Controller
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve meetings'
+                'message' => 'Failed to retrieve meetings',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -411,7 +481,7 @@ class BigBlueButtonController extends Controller
 
         try {
             $meetingId = $validated['meeting_id'];
-            $dbMeeting = BigBlueButtonMeeting::where('meeting_id', $meetingId)->first();
+            $dbMeeting = Meeting::where('meeting_id', $meetingId)->first();
 
             if (!$dbMeeting) {
                 return response()->json([
@@ -433,7 +503,7 @@ class BigBlueButtonController extends Controller
 
             // Create/restart the meeting
             $createParams = [
-                'name' => $dbMeeting->name,
+                'name' => $dbMeeting->metadata['meeting_name'] ?? $dbMeeting->meeting_id,
                 'meetingID' => $dbMeeting->meeting_id,
                 'attendeePW' => $dbMeeting->attendee_password,
                 'moderatorPW' => $dbMeeting->moderator_password,

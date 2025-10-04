@@ -126,9 +126,10 @@ class CourseEnrollmentController extends Controller
         // Cancel the enrollment
         $enrollment->cancel();
 
-        // Also cancel any associated BigBlueButton meetings
-        $enrollment->course->bigBlueButtonMeetings()
-            ->where('student_id', $enrollment->student_id)
+        // Also cancel any associated meetings that were linked to this enrollment via metadata
+        // We store enrollment_id in meeting.metadata when assigning meetings to enrollments.
+        $enrollment->course->meetings()
+            ->whereRaw("JSON_EXTRACT(metadata, '$.enrollment_id') = ?", [$enrollment->id])
             ->update(['status' => 'cancelled']);
 
         return response()->json([
@@ -163,7 +164,7 @@ class CourseEnrollmentController extends Controller
                         'subject' => $enrollment->course->subject,
                         'proficiency_level' => $enrollment->course->proficiency_level ?? null,
                         'description' => $enrollment->course->description,
-                        'thumbnail' => $enrollment->course->thumbnail_url ?? null,
+                        'thumbnail_url' => $enrollment->course->thumbnail_url ?? null,
                         'price_per_student' => $enrollment->course->price_per_student ?? null,
                         'count_session' => $enrollment->course->count_session ?? null,
                         'duration_session' => $enrollment->course->duration_session ?? null,
@@ -203,7 +204,7 @@ class CourseEnrollmentController extends Controller
             'course' => [
                 'id' => $course->id,
                 'title' => $course->title,
-                'thumbnail' => $course->thumbnail_url,
+                'thumbnail_url' => $course->thumbnail_url,
             ],
             'enrollments' => $enrollments->map(function ($enrollment) {
                 return [

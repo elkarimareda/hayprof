@@ -47,8 +47,8 @@ class MediaController extends Controller
     $path = $file->store("uploads/{$purpose}", 's3');
 
     $media = Media::create([
-      'mediable_id'   => $request->user()?->id,
-      'mediable_type' => $request->user() ? get_class($request->user()) : null,
+      'mediable_id'   => $request->user()?->isStudent() ? $request->user()->student->id : ($request->user()?->isTeacher() ? $request->user()->teacher->id : null),
+      'mediable_type' => $request->user() ? $request->user()?->isStudent() ? get_class($request->user()->student) : ($request->user()?->isTeacher() ? get_class($request->user()->teacher) : null) : null,
       'type'          => $type, // ✅ derived from file, not user input
       'media_purpose'  => $purpose,
       'file_path'     => $path,

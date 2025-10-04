@@ -3,7 +3,7 @@
 namespace App\Listeners;
 
 use App\Events\CourseCreated;
-use App\Models\BigBlueButtonMeeting;
+use App\Models\Meeting;
 use Illuminate\Support\Str;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
@@ -19,25 +19,25 @@ class CreateMeetingForCourse implements ShouldQueue
             $attendeePassword = Str::random(12);
             $moderatorPassword = Str::random(12);
 
-            BigBlueButtonMeeting::create([
+            // Generate standardized meeting name
+            $meetingName = Meeting::generateNameForCourse($course, $meetingId);
+
+            Meeting::create([
                 'meeting_id' => $meetingId,
-                'name' => "{$course->title} - Session " . $schedule->id,
                 'attendee_password' => $attendeePassword,
                 'moderator_password' => $moderatorPassword,
-                'created_by' => $course->teacher->user_id,
+                'created_by' => $course->teacher->user_id ?? null,
                 'course_id' => $course->id,
-                'teacher_id' => $course->teacher_id,
-                'student_id' => null, // Will be updated when students enroll
+                'schedule_id' => $schedule->id ?? null,
                 'is_recording' => true,
-                'max_participants' => $course->max_students + 1, // Students + teacher
-                'duration' => $schedule->time_of_session, // Already in minutes
-                'scheduled_at' => $schedule->datetime_scheduled,
+                // scheduled_at removed from schema; store date in metadata if needed
+                // 'scheduled_at' => $schedule->datetime_scheduled,
                 'status' => 'scheduled',
                 'metadata' => [
                     'auto_created' => true,
                     'schedule_id' => $schedule->id,
                     'course_title' => $course->title,
-                    'teacher_name' => $course->teacher->first_name . ' ' . $course->teacher->last_name,
+                    'meeting_name' => $meetingName,
                 ]
             ]);
         }

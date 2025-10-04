@@ -11,7 +11,7 @@ This system automatically creates BigBlueButton meetings when:
 - **Course** - Has many schedules and enrollments
 - **CourseEnrollment** - Links students to courses with enrollment status
 - **CourseSchedule** - Defines when course sessions occur
-- **BigBlueButtonMeeting** - Video conference meetings linked to courses, teachers, and students
+- **Meeting** - Video conference meetings linked to courses, teachers, and students
 
 ### Events & Listeners
 - **CourseCreated Event** → **CreateMeetingForCourse Listener**
@@ -27,7 +27,7 @@ Teacher creates course → CourseCreated event → CreateMeetingForCourse listen
 
 **What happens:**
 - For each `CourseSchedule` in the course
-- Creates a `BigBlueButtonMeeting` with:
+- Creates a `Meeting` with:
   - Unique meeting ID and passwords
   - Course and teacher linked
   - `student_id` = null (to be filled when student enrolls)
@@ -205,7 +205,7 @@ php artisan queue:work
 GET /api/bigbluebutton/meetings?include_bbb_data=false
 
 # Filter by auto-created meetings
-BigBlueButtonMeeting::whereJsonContains('metadata->auto_created', true)->get()
+Meeting::whereJsonContains('metadata->auto_created', true)->get()
 ```
 
 ### Meeting Status Tracking

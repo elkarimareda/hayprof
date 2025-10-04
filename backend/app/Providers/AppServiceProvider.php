@@ -45,5 +45,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('view-recordings', function ($user) {
             return $user->can('view recordings');
         });
+
+        // Register admin route middleware alias
+        if ($this->app->bound('router')) {
+            $this->app['router']->aliasMiddleware('admin', \App\Http\Middleware\AdminMiddleware::class);
+        }
     }
 }

@@ -5,26 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Course;
 
-class BigBlueButtonMeeting extends Model
+class Meeting extends Model
 {
     use HasFactory;
 
-    protected $table = 'big_blue_button_meetings';
-
     protected $fillable = [
         'meeting_id',
-        'name',
         'attendee_password',
         'moderator_password',
         'created_by',
         'course_id',
-        'teacher_id',
-        'student_id',
         'is_recording',
-        'max_participants',
-        'duration',
-        'scheduled_at',
         'started_at',
         'ended_at',
         'status',
@@ -35,7 +28,6 @@ class BigBlueButtonMeeting extends Model
     {
         return [
             'is_recording' => 'boolean',
-            'scheduled_at' => 'datetime',
             'started_at' => 'datetime',
             'ended_at' => 'datetime',
             'metadata' => 'array',
@@ -52,15 +44,7 @@ class BigBlueButtonMeeting extends Model
         return $this->belongsTo(Course::class);
     }
 
-    public function teacher(): BelongsTo
-    {
-        return $this->belongsTo(Teacher::class);
-    }
-
-    public function student(): BelongsTo
-    {
-        return $this->belongsTo(Student::class);
-    }
+    // student relationship removed per schema change
 
     public function isRunning(): bool
     {
@@ -85,12 +69,14 @@ class BigBlueButtonMeeting extends Model
 
     public function scopeForTeacher($query, $teacherId)
     {
-        return $query->where('teacher_id', $teacherId);
+        // teacher_id removed; keep for compatibility but return no-op
+        return $query;
     }
 
     public function scopeForStudent($query, $studentId)
     {
-        return $query->where('student_id', $studentId);
+        // student_id removed; keep for compatibility but return no-op
+        return $query;
     }
 
     public function scopeScheduled($query)
@@ -112,22 +98,7 @@ class BigBlueButtonMeeting extends Model
     public function getParticipants(): array
     {
         $participants = [];
-        
-        if ($this->teacher) {
-            $participants[] = [
-                'type' => 'teacher',
-                'user' => $this->teacher->user,
-                'role' => 'moderator'
-            ];
-        }
-        
-        if ($this->student) {
-            $participants[] = [
-                'type' => 'student', 
-                'user' => $this->student->user,
-                'role' => 'attendee'
-            ];
-        }
+        // Teacher and student relations removed; participants derived elsewhere if needed
         
         return $participants;
     }
@@ -135,14 +106,7 @@ class BigBlueButtonMeeting extends Model
     public function canBeJoinedBy(User $user): bool
     {
         // Check if user is the teacher
-        if ($this->teacher && $this->teacher->user_id === $user->id) {
-            return true;
-        }
-        
-        // Check if user is the student
-        if ($this->student && $this->student->user_id === $user->id) {
-            return true;
-        }
+        // Teacher and student checks removed; fallback to creator
         
         // Check if user created the meeting
         if ($this->created_by === $user->id) {
@@ -150,5 +114,46 @@ class BigBlueButtonMeeting extends Model
         }
         
         return false;
+    }
+
+    /**
+     * Generate a standardized meeting name for a course.
+     *
+     * @param Course|null $course
+     * @param string|null $default
+     * @return string
+     */
+    public static function generateNameForCourse(?Course $course, ?string $default = null): string
+    {
+        $meetingIdFallback = $default ?? 'Meeting';
+
+        if (!$course) {
+            return $meetingIdFallback;
+        }
+
+        $teacher = $course->teacher ?? null;
+        $teacherName = null;
+        if ($teacher) {
+            $teacherName = trim((string)($teacher->first_name ?? '') . ' ' . (string)($teacher->last_name ?? ''));
+            if ($teacherName === '') {
+                $teacherName = null;
+            }
+        }
+
+        $subjectName = $course->subject?->name ?? null;
+
+        if ($teacherName && $subjectName) {
+            return "HayProf {$teacherName} - {$subjectName}";
+        }
+
+        if ($teacherName) {
+            return "HayProf {$teacherName} - {$course->title}";
+        }
+
+        if ($subjectName) {
+            return "HayProf - {$subjectName}";
+        }
+
+        return $course->title ?? $meetingIdFallback;
     }
 }
