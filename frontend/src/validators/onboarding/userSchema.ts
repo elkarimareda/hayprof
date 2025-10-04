@@ -35,7 +35,7 @@ const userSchemaBase = z
 
 const studentSchema = userSchemaBase;
 
-const teacherSchema = userSchemaBase.extend({
+const teacherSchema = userSchemaBase.safeExtend({
   biography: z.string().max(500, "Biography cannot exceed 500 characters"),
 });
 
