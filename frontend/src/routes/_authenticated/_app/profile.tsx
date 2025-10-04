@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,115 +17,41 @@ import {
   Mail,
   Phone,
   MessageCircle,
-  Link as LinkIcon,
+  ImageUp,
   Shield,
 } from "lucide-react";
-import { FaGoogle, FaFacebook } from "react-icons/fa";
-import api from "@/utils/request";
-import { useState, useEffect } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import api from "@/lib/request";
+import { enrollInCourse, unenrollFromCourse } from "@/apis/courses";
+import { toast } from "sonner";
+import { useState, useEffect, useRef } from "react";
+import Avatar from "@/components/ui/Avatar";
 import { UserType } from "@/Models/Auth";
-import {
-  linkProvider,
-  unlinkProvider,
-  type SocialAccount,
-  type SocialProvider,
-} from "@/apis/social";
 import { useAuth } from "@/hooks/useAuth";
 import z from "zod";
-import { format, parse } from "date-fns";
+import CourseActionButtons from "@/components/CourseActionButtons";
+import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
-import type { CourseSchedule } from "@/apis/courses";
-
-// Simple Badge component
-// const Badge = ({
-//   children,
-//   variant = "default",
-//   className = "",
-// }: {
-//   children: React.ReactNode;
-//   variant?: "default" | "secondary" | "outline";
-//   className?: string;
-// }) => {
-//   const baseClasses =
-//     "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold";
-//   const variantClasses = {
-//     default: "bg-primary text-primary-foreground",
-//     secondary: "bg-secondary text-secondary-foreground",
-//     outline: "border border-input bg-background",
-//   };
-
-//   return (
-//     <div className={`${baseClasses} ${variantClasses[variant]} ${className}`}>
-//       {children}
-//     </div>
-//   );
-// };
-
-interface Certification {
-  id: number;
-  subject: string;
-  certificate: string;
-  description?: string;
-  issue_by?: string;
-  year_of_study_start: string;
-  year_of_study_end: string;
-}
-
-interface Education {
-  id: number;
-  university: string;
-  degree: string;
-  degree_type: string;
-  specialization?: string;
-  year_of_study_start: string;
-  year_of_study_end: string;
-}
-
-interface Description {
-  id: number;
-  yourself?: string;
-  experience?: string;
-  motivation?: string;
-  headline?: string;
-}
-
+import type { Course } from "@/Models/Course";
+import { formatPrice, getInitials } from "@/lib/utils";
+import { formatTime, parseTime } from "@/lib/date";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogTitle,
+  DialogHeader,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { uploadMedia } from "@/apis/medias";
+import type { Certification, Description, Education } from "@/Models/Teacher";
+import SocialAccounts from "@/components/Profile/SocialAccounts";
+import type { SocialProvider } from "@/apis/social";
 interface TimeSlot {
   id: number;
   day_of_week: string;
   start_time: string;
   end_time: string;
-}
-
-interface Course {
-  id: number;
-  title: string;
-  subject: {
-    id: number;
-    name: string;
-    code: string;
-    description?: string;
-    is_active?: boolean;
-    created_at?: string;
-    updated_at?: string;
-  };
-  proficiency_level?: string;
-  description: string;
-  thumbnail?: string;
-  price_per_student: string;
-  count_session: number;
-  duration_session: string;
-  min_students: number;
-  max_students: number;
-  schedules: CourseSchedule[];
-  is_active: boolean;
-  is_validated: boolean;
-  created_at: string;
-  teacher: {
-    id: number;
-    first_name: string;
-    last_name: string;
-  };
 }
 
 interface Language {
@@ -193,7 +119,7 @@ interface ProfileData {
   name: string;
   email: string;
   phone_number?: string;
-  user_type: string;
+  user_type: UserType;
   profile: TeacherProfile | StudentProfile;
 }
 
@@ -209,6 +135,9 @@ export const Route = createFileRoute("/_authenticated/_app/profile")({
   loader: async ({ context }) => {
     const user = context.auth.user;
     const userType = user?.user_type;
+    if (userType === "admin") {
+      return redirect({ to: "/" });
+    }
     const profileId = user?.profile?.id;
 
     const response = await api.get(`/${userType}/profile/${profileId}`);
@@ -223,60 +152,69 @@ function RouteComponent() {
   const { user } = useAuth();
   const searchParams = Route.useSearch();
   const profileData: ProfileData = Route.useLoaderData();
+  // Local editable copy so UI updates immediately after edits
+  const [localProfile, setLocalProfile] = useState<ProfileData>(profileData);
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    profileData.profile.photo_url || null
+  );
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
+
+  const handleSavePhoto = async () => {
+    if (!selectedPhoto) return;
+    try {
+      setUploadingPhoto(true);
+      // Upload to media endpoint
+      const uploadResp = await uploadMedia(
+        selectedPhoto,
+        "profile_photo",
+        undefined,
+        true
+      );
+      const url = uploadResp.data?.url;
+      if (!url) throw new Error("No URL returned from upload");
+
+      // Persist to profile endpoint
+      const userType = user?.user_type;
+      const profileId = user?.profile?.id;
+      if (!userType || !profileId) throw new Error("Missing user context");
+
+      // Update local UI state in a type-safe way
+      setLocalProfile((prev) => {
+        if (profileData.user_type === UserType.teacher) {
+          const updatedProfile: TeacherProfile = {
+            ...(prev.profile as TeacherProfile),
+            photo_url: url,
+          };
+          return { ...prev, profile: updatedProfile };
+        }
+
+        // Student
+        const updatedStudent: StudentProfile = {
+          ...(prev.profile as StudentProfile),
+          photo_url: url,
+        };
+        return { ...prev, profile: updatedStudent };
+      });
+      setSelectedPhoto(null);
+      setPreviewUrl(url);
+    } catch (error) {
+      console.error("Failed to upload or save profile photo:", error);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
   const [activeTab, setActiveTab] = useState(
     searchParams.action === "link" ? "social" : "overview"
   );
-  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(
-    user?.social_accounts || []
-  );
-  const [loadingSocial, setLoadingSocial] = useState<Record<string, boolean>>(
-    {}
-  );
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loadingEnrollments, setLoadingEnrollments] = useState(false);
-
-  // Helper function to get provider icon
-  const getProviderIcon = (provider: string) => {
-    switch (provider.toLowerCase()) {
-      case "google":
-        return <FaGoogle className="w-5 h-5 text-red-500" />;
-      case "facebook":
-        return <FaFacebook className="w-5 h-5 text-blue-600" />;
-      default:
-        return <LinkIcon className="w-5 h-5 text-gray-500" />;
-    }
-  };
-
-  // Handle linking a social account
-  const handleLinkAccount = async (provider: SocialProvider) => {
-    try {
-      setLoadingSocial((prev) => ({ ...prev, [provider]: true }));
-      const response = await linkProvider(provider);
-      setSocialAccounts(response.user.social_accounts || []);
-    } catch (error) {
-      console.error(`Failed to link ${provider} account:`, error);
-    } finally {
-      setLoadingSocial((prev) => ({ ...prev, [provider]: false }));
-    }
-  };
-
-  // Handle unlinking a social account
-  const handleUnlinkAccount = async (provider: SocialProvider) => {
-    try {
-      setLoadingSocial((prev) => ({ ...prev, [provider]: true }));
-      const response = await unlinkProvider(provider);
-      setSocialAccounts(response.user.social_accounts || []);
-    } catch (error) {
-      console.error(`Failed to unlink ${provider} account:`, error);
-    } finally {
-      setLoadingSocial((prev) => ({ ...prev, [provider]: false }));
-    }
-  };
-
-  // Check if a provider is linked
-  const isProviderLinked = (provider: string) => {
-    return socialAccounts.some((account) => account.provider === provider);
-  };
+  const [enrollingIds, setEnrollingIds] = useState<number[]>([]);
+  const [confirmUnenrollId, setConfirmUnenrollId] = useState<number | null>(
+    null
+  );
 
   // Load enrollments on component mount for students
   useEffect(() => {
@@ -313,16 +251,38 @@ function RouteComponent() {
   };
 
   const sidebarItems = [
-    { id: "overview", label: "Overview", icon: User },
-    { id: "social", label: "Linked Accounts", icon: Shield },
+    { id: "overview", label: t("profile", "Overview"), icon: User },
+    {
+      id: "social",
+      label: t("user_profile.linked_accounts", "Linked Accounts"),
+      icon: Shield,
+    },
     ...(isStudent(profileData.profile)
-      ? [{ id: "enrollments", label: "My Enrollments", icon: BookOpen }]
+      ? [
+          {
+            id: "enrollments",
+            label: t("user_profile.my_enrollments", "My Enrollments"),
+            icon: BookOpen,
+          },
+        ]
       : []),
     ...(isTeacher(profileData.profile)
       ? [
-          { id: "certifications", label: "Certifications", icon: Award },
-          { id: "education", label: "Education", icon: GraduationCap },
-          { id: "description", label: "About Me", icon: FileText },
+          {
+            id: "certifications",
+            label: t("user_profile.certifications", "Certifications"),
+            icon: Award,
+          },
+          {
+            id: "education",
+            label: t("user_profile.education", "Education"),
+            icon: GraduationCap,
+          },
+          {
+            id: "description",
+            label: t("user_profile.about_myself", "About Myself"),
+            icon: FileText,
+          },
           { id: "availability", label: "Availability", icon: Calendar },
           { id: "courses", label: "Courses", icon: BookOpen },
           { id: "pricing", label: "Pricing", icon: DollarSign },
@@ -341,29 +301,16 @@ function RouteComponent() {
     "sunday",
   ];
 
-  const formatTime = (time: string) => {
-    // Parse time string (e.g., "14:30:00") and format to 12-hour format
-    const parsedTime = parse(time, "HH:mm:ss", new Date());
-    return format(parsedTime, "h:mm a");
-  };
-
-  const formatPrice = (price: number | string) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(numPrice);
-  };
-
   // Helper function to safely format dates
   const safeFormatDate = (dateString: string, formatStr: string) => {
     try {
       if (!dateString) return "Invalid date";
-      const date = new Date(dateString);
+      const date = dateString.includes("T")
+        ? new Date(dateString)
+        : parseTime(dateString);
       if (isNaN(date.getTime())) return "Invalid date";
       return format(date, formatStr);
-    } catch (error) {
-      console.error("Date formatting error:", error);
+    } catch {
       return "Invalid date";
     }
   };
@@ -437,18 +384,108 @@ function RouteComponent() {
       <Card>
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-            <Avatar className="w-24 h-24">
-              <AvatarImage
-                src={profileData.profile.photo_url}
+            <div className="relative">
+              <Avatar
+                image={localProfile.profile.photo_url}
                 alt={profileData.name}
-              />
-              <AvatarFallback className="text-2xl">
-                {profileData.name
+                fallback={profileData.name
                   .split(" ")
                   .map((n: string) => n[0])
-                  .join("")}
-              </AvatarFallback>
-            </Avatar>
+                  .join("")
+                  .toUpperCase()}
+              />
+              <div className="absolute right-0 bottom-0">
+                <Dialog
+                  open={photoDialogOpen}
+                  onOpenChange={(v) => {
+                    setPhotoDialogOpen(v);
+                    if (!v) {
+                      // reset preview on close
+                      setSelectedPhoto(null);
+                      setPreviewUrl(localProfile.profile.photo_url || null);
+                    }
+                  }}
+                >
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline">
+                      <ImageUp />
+                    </Button>
+                  </DialogTrigger>
+
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        {t("user_profile.edit_photo", "Edit Photo")}
+                      </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                      <div>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] ?? null;
+                            setSelectedPhoto(f);
+                            if (f) setPreviewUrl(URL.createObjectURL(f));
+                          }}
+                        />
+                      </div>
+
+                      {previewUrl && (
+                        <div className="flex items-center gap-4">
+                          <img
+                            src={previewUrl}
+                            alt={t(
+                              "user_profile.photo_preview",
+                              "Photo preview"
+                            )}
+                            className="w-24 h-24 object-cover rounded"
+                          />
+                          <div className="flex flex-col gap-2">
+                            <span className="text-sm text-muted-foreground">
+                              {t(
+                                "user_profile.preview_note",
+                                "Selected image preview"
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            setSelectedPhoto(null);
+                            setPreviewUrl(
+                              localProfile.profile.photo_url || null
+                            );
+                          }}
+                        >
+                          {t("cancel", "Cancel")}
+                        </Button>
+                      </DialogClose>
+
+                      <Button
+                        onClick={async () => {
+                          await handleSavePhoto();
+                          setPhotoDialogOpen(false);
+                        }}
+                        disabled={!selectedPhoto || uploadingPhoto}
+                      >
+                        {uploadingPhoto
+                          ? t("common.saving", "Saving...")
+                          : t("save", "Save")}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
 
             <div className="flex-1 space-y-2">
               <h1 className="text-3xl font-bold">{profileData.name}</h1>
@@ -504,10 +541,6 @@ function RouteComponent() {
                     ${profileData.profile.pricing}/hour
                   </Badge>
                 )}
-                {isTeacher(profileData.profile) &&
-                  profileData.profile.onboarding_completed && (
-                    <Badge variant="default">Verified Teacher</Badge>
-                  )}
                 {isStudent(profileData.profile) && (
                   <Badge variant="default">Student</Badge>
                 )}
@@ -518,9 +551,9 @@ function RouteComponent() {
               profileData.profile.video_url && (
                 <div className="w-80 max-w-full">
                   <h3 className="text-lg font-semibold mb-2">
-                    Video Introduction
+                    {t("user_profile.video_introduction", "Video Introduction")}
                   </h3>
-                  <div className="relative bg-black rounded-lg overflow-hidden shadow-lg">
+                  <div className="relative bg-black rounded-lg overflow-hidden">
                     <video
                       controls
                       className="w-full h-48 object-cover"
@@ -624,7 +657,9 @@ function RouteComponent() {
 
   const renderCertifications = () => (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Certifications</h2>
+      <h2 className="text-2xl font-bold">
+        {t("user_profile.certifications", "Certifications")}
+      </h2>
       {isTeacher(profileData.profile) ? (
         profileData.profile.certifications &&
         profileData.profile.certifications.length > 0 ? (
@@ -678,7 +713,9 @@ function RouteComponent() {
 
   const renderEducation = () => (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Education</h2>
+      <h2 className="text-2xl font-bold">
+        {t("user_profile.education", "Education")}
+      </h2>
       {isTeacher(profileData.profile) ? (
         profileData.profile.educations &&
         profileData.profile.educations.length > 0 ? (
@@ -730,14 +767,18 @@ function RouteComponent() {
 
   const renderDescription = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">About Me</h2>
+      <h2 className="text-2xl font-bold">
+        {t("user_profile.about_myself", "About Myself")}
+      </h2>
       {isTeacher(profileData.profile) ? (
         profileData.profile.description ? (
           <div className="space-y-6">
             {profileData.profile.description.yourself && (
               <Card>
                 <CardHeader>
-                  <CardTitle>About Myself</CardTitle>
+                  <CardTitle>
+                    {t("user_profile.about_myself", "About Myself")}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="whitespace-pre-wrap">
@@ -848,7 +889,9 @@ function RouteComponent() {
   const renderCourses = () => (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">My Courses</h2>
+        <h2 className="text-2xl font-bold">
+          {t("user_profile.my_courses", "My Courses")}
+        </h2>
         {isTeacher(profileData.profile) && (
           <Button variant="outline" size="sm">
             <BookOpen className="w-4 h-4 mr-2" />
@@ -862,10 +905,7 @@ function RouteComponent() {
           <div className="grid gap-6">
             {(profileData.profile as TeacherProfile).courses?.map(
               (course: Course) => (
-                <Card
-                  key={course.id}
-                  className="hover:shadow-lg transition-shadow"
-                >
+                <Card key={course.id}>
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -886,9 +926,9 @@ function RouteComponent() {
                           {getValidationBadge(course)}
                         </div>
                       </div>
-                      {course.thumbnail && (
+                      {course.thumbnail_url && (
                         <img
-                          src={course.thumbnail}
+                          src={course.thumbnail_url}
                           alt={course.title}
                           className="w-20 h-20 object-cover rounded-lg ml-4"
                         />
@@ -903,7 +943,8 @@ function RouteComponent() {
                       <div className="flex items-center text-sm">
                         <DollarSign className="w-4 h-4 mr-2 text-green-600" />
                         <span className="font-semibold">
-                          {formatPrice(course.price_per_student)}/student
+                          {formatPrice(Number(course.price_per_student))}
+                          /student
                         </span>
                       </div>
                       {/* <div className="flex items-center text-sm">
@@ -988,14 +1029,17 @@ function RouteComponent() {
             <CardContent className="p-8 text-center">
               <BookOpen className="w-12 h-12 mx-auto mb-4 text-gray-400" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No courses created yet
+                {t("user_profile.no_courses_created", "No courses created yet")}
               </h3>
               <p className="text-gray-600 mb-4">
-                Start creating courses to share your knowledge with students.
+                {t(
+                  "user_profile.course_creation_only_teachers",
+                  "Start creating courses to share your knowledge with students."
+                )}
               </p>
               <Button>
                 <BookOpen className="w-4 h-4 mr-2" />
-                Create Your First Course
+                {t("user_profile.create_course", "Create Your First Course")}
               </Button>
             </CardContent>
           </Card>
@@ -1048,10 +1092,7 @@ function RouteComponent() {
       profileData.profile.languages.length > 0 ? (
         <div className="grid gap-4">
           {profileData.profile.languages.map((language: Language) => (
-            <Card
-              key={language.id}
-              className="hover:shadow-md transition-shadow"
-            >
+            <Card key={language.id}>
               <CardContent className="p-6">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
@@ -1120,17 +1161,14 @@ function RouteComponent() {
         {enrollments.length > 0 ? (
           <div className="grid gap-6">
             {enrollments.map((enrollment) => (
-              <Card
-                key={enrollment.id}
-                className="hover:shadow-md transition-shadow"
-              >
+              <Card key={enrollment.id}>
                 <CardContent className="p-6">
                   <div className="flex flex-col md:flex-row gap-6">
                     {/* Course Thumbnail */}
                     <div className="w-full md:w-48 h-32 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                      {enrollment.course.thumbnail ? (
+                      {enrollment.course.thumbnail_url ? (
                         <img
-                          src={enrollment.course.thumbnail}
+                          src={enrollment.course.thumbnail_url}
                           alt={enrollment.course.title}
                           className="w-full h-full object-cover"
                         />
@@ -1169,12 +1207,14 @@ function RouteComponent() {
 
                       {/* Teacher Info */}
                       <div className="flex items-center gap-3">
-                        <Avatar className="w-8 h-8">
-                          <AvatarFallback>
-                            {enrollment.course.teacher.first_name[0]}
-                            {enrollment.course.teacher.last_name[0]}
-                          </AvatarFallback>
-                        </Avatar>
+                        <Avatar
+                          image={enrollment.course.teacher.photo_url}
+                          alt={`${enrollment.course.teacher.first_name} ${enrollment.course.teacher.last_name}`}
+                          fallback={getInitials(
+                            enrollment.course.teacher.first_name,
+                            enrollment.course.teacher.last_name
+                          )}
+                        />
                         <span className="text-sm text-gray-600">
                           {t("course.prof")}:{" "}
                           {enrollment.course.teacher.first_name}{" "}
@@ -1264,6 +1304,117 @@ function RouteComponent() {
                           </div>
                         </div>
                       )}
+                      {/* Action buttons for enroll/unenroll */}
+                      <div className="pt-3">
+                        <CourseActionButtons
+                          canEnroll={!!(enrollment.status === "cancelled")}
+                          canUnenroll={!!(enrollment.status === "confirmed")}
+                          enrolling={enrollingIds.includes(
+                            enrollment.course.id
+                          )}
+                          checkingEnrollment={false}
+                          isCancelled={enrollment.status === "cancelled"}
+                          confirmUnenrollOpen={
+                            confirmUnenrollId === enrollment.id
+                          }
+                          onEnroll={async () => {
+                            try {
+                              setEnrollingIds((s) => [
+                                ...s,
+                                enrollment.course.id,
+                              ]);
+                              const resp = await enrollInCourse(
+                                enrollment.course.id
+                              );
+                              if (resp?.enrollment) {
+                                // replace or add enrollment
+                                setEnrollments((prev) => {
+                                  const existing = prev.find(
+                                    (e) => e.course_id === enrollment.course.id
+                                  );
+                                  if (existing) {
+                                    return prev.map((e) =>
+                                      e.id === existing.id
+                                        ? {
+                                            ...e,
+                                            ...resp.enrollment,
+                                            status: resp.enrollment
+                                              .status as Enrollment["status"],
+                                          }
+                                        : e
+                                    );
+                                  }
+                                  const newEnrollment: Enrollment = {
+                                    id: resp.enrollment.id,
+                                    student_id: resp.enrollment.student_id,
+                                    course_id: resp.enrollment.course_id,
+                                    enrolled_at: resp.enrollment.enrolled_at,
+                                    status: resp.enrollment
+                                      .status as Enrollment["status"],
+                                    course: enrollment.course,
+                                  };
+                                  return [...prev, newEnrollment];
+                                });
+                                toast.success(
+                                  t(
+                                    "course.enrollment_success",
+                                    "Successfully enrolled in course!"
+                                  )
+                                );
+                              }
+                            } catch (error) {
+                              console.error("Failed to enroll:", error);
+                              toast.error(
+                                t(
+                                  "course.enrollment_error",
+                                  "Failed to enroll in course"
+                                )
+                              );
+                            } finally {
+                              setEnrollingIds((s) =>
+                                s.filter((id) => id !== enrollment.course.id)
+                              );
+                            }
+                          }}
+                          onUnenroll={async () => {
+                            try {
+                              setEnrollingIds((s) => [
+                                ...s,
+                                enrollment.course.id,
+                              ]);
+                              await unenrollFromCourse(enrollment.course.id);
+                              setEnrollments((prev) =>
+                                prev.map((e) =>
+                                  e.id === enrollment.id
+                                    ? { ...e, status: "cancelled" }
+                                    : e
+                                )
+                              );
+                              toast.success(
+                                t(
+                                  "course.unenroll_success",
+                                  "Successfully unenrolled from course"
+                                )
+                              );
+                            } catch (error) {
+                              console.error("Failed to unenroll:", error);
+                              toast.error(
+                                t(
+                                  "course.unenroll_error",
+                                  "Failed to unenroll from course"
+                                )
+                              );
+                            } finally {
+                              setEnrollingIds((s) =>
+                                s.filter((id) => id !== enrollment.course.id)
+                              );
+                            }
+                          }}
+                          onConfirmUnenrollOpen={(open: boolean) =>
+                            setConfirmUnenrollId(open ? enrollment.id : null)
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -1274,10 +1425,14 @@ function RouteComponent() {
           <Card>
             <CardContent className="p-8 text-center">
               <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 mb-2">No enrollments found</p>
+              <p className="text-gray-600 mb-2">
+                {t("user_profile.no_enrollments_found", "No enrollments found")}
+              </p>
               <p className="text-sm text-gray-500">
-                You haven't enrolled in any courses yet. Browse our course
-                catalog to get started!
+                {t(
+                  "user_profile.no_enrollments_message",
+                  "You haven't enrolled in any courses yet. Browse our course catalog to get started!"
+                )}
               </p>
             </CardContent>
           </Card>
@@ -1287,118 +1442,20 @@ function RouteComponent() {
   };
 
   const renderSocialAccounts = () => {
-    const supportedProviders: { name: SocialProvider; label: string }[] = [
-      { name: "google", label: "Google" },
-      { name: "facebook", label: "Facebook" },
-    ];
-
+    const provider = searchParams.provider as SocialProvider;
     return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold mb-2">Linked Accounts</h2>
-          <p className="text-gray-600">
-            Connect your social accounts for easier sign-in and enhanced
-            security.
-          </p>
-        </div>
-
-        <div className="grid gap-4">
-          {supportedProviders.map((provider) => {
-            const isLinked = isProviderLinked(provider.name);
-            const linkedAccount = socialAccounts.find(
-              (account) => account.provider === provider.name
-            );
-            const error =
-              searchParams.status === "error" &&
-              searchParams.provider === provider.name &&
-              searchParams.action === "link" &&
-              `${searchParams.message} ${searchParams.error}`;
-
-            return (
-              <Card
-                key={provider.name}
-                className="hover:shadow-md transition-shadow"
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      {getProviderIcon(provider.name)}
-                      <div>
-                        <h3 className="font-semibold text-lg">
-                          {provider.label}
-                        </h3>
-                        {isLinked && linkedAccount ? (
-                          <p className="text-sm text-gray-600">
-                            Connected as {linkedAccount.provider_email}
-                          </p>
-                        ) : (
-                          <p className="text-sm text-gray-600">Not connected</p>
-                        )}
-                        {error && <div className="text-red-500">{error}</div>}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {isLinked ? (
-                        <>
-                          <Badge
-                            variant="default"
-                            className="bg-green-100 text-green-800"
-                          >
-                            Connected
-                          </Badge>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleUnlinkAccount(provider.name)}
-                            disabled={loadingSocial[provider.name]}
-                          >
-                            {loadingSocial[provider.name]
-                              ? "Unlinking..."
-                              : "Unlink"}
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleLinkAccount(provider.name)}
-                          disabled={loadingSocial[provider.name]}
-                        >
-                          {loadingSocial[provider.name]
-                            ? "Linking..."
-                            : "Link Account"}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        {socialAccounts.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                Security Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p>
-                  • You have {socialAccounts.length} account
-                  {socialAccounts.length !== 1 ? "s" : ""} linked
-                </p>
-                <p>• Linked accounts can be used for faster sign-in</p>
-                <p>• You can unlink accounts at any time</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      <SocialAccounts
+        errors={
+          searchParams?.status === "error" &&
+          searchParams?.action === "link" &&
+          provider
+            ? ({
+                [provider]: `${searchParams.message} ${searchParams.error}`,
+              } as Record<SocialProvider, string>)
+            : undefined
+        }
+        user={user}
+      />
     );
   };
 
@@ -1431,31 +1488,29 @@ function RouteComponent() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar */}
-          <div className="lg:w-64 space-y-2">
-            <div className="lg:sticky lg:top-8">
-              {sidebarItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Button
-                    key={item.id}
-                    variant={activeTab === item.id ? "default" : "ghost"}
-                    className="w-full justify-start"
-                    onClick={() => setActiveTab(item.id)}
-                  >
-                    <Icon className="w-4 h-4 mr-2" />
-                    {item.label}
-                  </Button>
-                );
-              })}
-            </div>
+      <div className="flex flex-col lg:flex-row gap-8">
+        {/* Sidebar */}
+        <div className="lg:w-64 space-y-2">
+          <div className="lg:sticky lg:top-8">
+            {sidebarItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Button
+                  key={item.id}
+                  variant={activeTab === item.id ? "default" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setActiveTab(item.id)}
+                >
+                  <Icon className="w-4 h-4 mr-2" />
+                  {item.label}
+                </Button>
+              );
+            })}
           </div>
-
-          {/* Main Content */}
-          <div className="flex-1">{renderContent()}</div>
         </div>
+
+        {/* Main Content */}
+        <div className="flex-1">{renderContent()}</div>
       </div>
     </div>
   );

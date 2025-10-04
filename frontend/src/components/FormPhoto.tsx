@@ -27,7 +27,6 @@ function FormPhoto({ onPrevious, onNext, isLoading }: Props) {
   });
 
   const onSubmit = async (data: TeacherPhotoRegistrationInputs) => {
-    console.log("Form submitted with data:", data);
     onNext(data);
   };
 

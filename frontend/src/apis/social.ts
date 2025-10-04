@@ -1,4 +1,5 @@
-import api from "@/utils/request";
+import api from "@/lib/request";
+import type { UserType } from "@/Models/Auth";
 
 export interface SocialAuthRedirectResponse {
   status: "success";
@@ -12,7 +13,7 @@ export interface SocialAuthCallbackResponse {
     id: number;
     name: string;
     email: string;
-    user_type: string;
+    user_type: UserType;
     avatar?: string;
     provider: string;
   };
@@ -35,7 +36,7 @@ export interface UserWithSocialAccounts {
   id: number;
   name: string;
   email: string;
-  user_type: string;
+  user_type: UserType;
   social_accounts: SocialAccount[];
 }
 
@@ -84,7 +85,7 @@ export const unlinkSocialAccount = async (): Promise<{
     id: number;
     name: string;
     email: string;
-    user_type: string;
+    user_type: UserType;
     provider: null;
   };
 }> => {
@@ -146,35 +147,8 @@ export const linkProvider = async (
   user: UserWithSocialAccounts;
 }> => {
   const response = await api.post(`/auth/social/${provider}/link`);
-  console.log(response.data);
-
   if (response.data.status === "redirect_required") {
-    // Step 2: Open OAuth in popup
-    const popup = window.open(
-      response.data.redirect_url,
-      "oauth",
-      "width=500,height=600"
-    );
-
-    // Listen for popup completion
-    window.addEventListener("message", async (event) => {
-      if (event.data.type === "social_auth_callback") {
-        popup?.close();
-
-        const completeResponse = await api.post(
-          `/auth/social/${provider}/link`,
-          { code: event.data.code }
-        );
-
-        if (completeResponse.data.status === "success") {
-          console.log(
-            "Account linked successfully!",
-            completeResponse.data.user
-          );
-          // Update UI with new social accounts
-        }
-      }
-    });
+    window.location.href = response.data.redirect_url;
   }
   return response.data;
 };

@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useState, useEffect } from "react";
-import { getSubjects, type Subject } from "@/apis/reference";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { getSubjects } from "@/apis/reference";
+import type { Subject } from "@/Models/Common";
 import {
   Select,
   SelectContent,
@@ -12,42 +13,18 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Avatar from "@/components/ui/Avatar";
 import { Clock, Users, DollarSign, User, MapPin, Award } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/utils/request";
+import api from "@/lib/request";
+import { formatPrice, getInitials } from "@/lib/utils";
+import countries from "@/data/countries.json";
+import type { Teacher, TeachersResponse } from "@/Models/Teacher";
+import Stars from "@/components/Reviews/Stars";
 
 export const Route = createFileRoute("/_public/teachers")({
   component: TeachersListing,
 });
-
-interface Teacher {
-  id: number;
-  first_name: string;
-  last_name: string;
-  country: string;
-  timezone: string;
-  pricing: number;
-  biography?: string;
-  onboarding_completed: boolean;
-  photo_url?: string;
-  user: {
-    id: number;
-    name: string;
-    email: string;
-  };
-  certifications?: Array<{
-    id: number;
-    subject: string;
-    certificate: string;
-  }>;
-  courses_count?: number;
-  subjects?: string[];
-}
-
-interface TeachersResponse {
-  teachers: Teacher[];
-}
 
 // API function to get teachers
 const getTeachers = async (subjectId?: number): Promise<TeachersResponse> => {
@@ -75,7 +52,7 @@ function TeachersListing() {
     const fetchSubjects = async () => {
       try {
         const data = await getSubjects();
-        setSubjects(data.subjects);
+        setSubjects(data.subjects ?? []);
       } catch (error) {
         console.error("Failed to fetch subjects:", error);
         toast.error(t("errors.generic"));
@@ -86,43 +63,46 @@ function TeachersListing() {
   }, [t]);
 
   // Fetch teachers based on selected subject
-  useEffect(() => {
-    const fetchTeachers = async () => {
+  const fetchTeachers = useCallback(
+    async (subjectValue: string) => {
       setLoading(true);
       try {
-        const subjectId = selectedSubject
-          ? parseInt(selectedSubject)
-          : undefined;
+        const subjectId = subjectValue ? parseInt(subjectValue) : undefined;
         const data = await getTeachers(subjectId);
-        setTeachers(data.teachers);
+        setTeachers(data.teachers ?? []);
       } catch (error) {
         console.error("Failed to fetch teachers:", error);
         toast.error(t("errors.generic"));
       } finally {
         setLoading(false);
       }
-    };
+    },
+    [t]
+  );
 
-    fetchTeachers();
-  }, [selectedSubject, t]);
+  useEffect(() => {
+    let mounted = true;
+    if (mounted) fetchTeachers(selectedSubject);
+    return () => {
+      mounted = false;
+    };
+  }, [selectedSubject, fetchTeachers]);
 
   const handleSubjectChange = (value: string) => {
     setSelectedSubject(value === "all" ? "" : value);
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-  };
-
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase();
-  };
+  // memoize countries lookup for faster render
+  const countriesMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of countries) {
+      if (c.alpha2) m.set(String(c.alpha2).toLowerCase(), c.name);
+    }
+    return m;
+  }, []);
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           {t("teachers.browse_title", "Find Teachers")}
@@ -145,15 +125,12 @@ function TeachersListing() {
             >
               <SelectTrigger>
                 <SelectValue
-                  placeholder={t(
-                    "teachers.filter_by_subject",
-                    "Filter by subject"
-                  )}
+                  placeholder={t("filter_by_subject", "Filter by subject")}
                 />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">
-                  {t("teachers.all_subjects", "All Subjects")}
+                  {t("all_subjects", "All Subjects")}
                 </SelectItem>
                 {subjects.map((subject) => (
                   <SelectItem key={subject.id} value={subject.id.toString()}>
@@ -195,7 +172,7 @@ function TeachersListing() {
           <div className="mb-4">
             <p className="text-sm text-gray-600">
               {t("teachers.results", {
-                count: teachers.length
+                count: teachers.length,
               })}
             </p>
           </div>
@@ -217,38 +194,42 @@ function TeachersListing() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {teachers.map((teacher) => (
-                <Card
-                  key={teacher.id}
-                  className="hover:shadow-lg transition-shadow duration-200"
-                >
+                <Card key={teacher.id}>
                   <CardHeader>
                     <div className="flex items-start gap-3">
-                      <Avatar className="w-16 h-16">
-                        <AvatarImage
-                          src={teacher.photo_url}
-                          alt={`${teacher.first_name} ${teacher.last_name}`}
-                        />
-                        <AvatarFallback>
-                          {getInitials(teacher.first_name, teacher.last_name)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <Avatar
+                        image={teacher.photo_url}
+                        alt={`${teacher.first_name} ${teacher.last_name}`}
+                        fallback={getInitials(
+                          teacher.first_name,
+                          teacher.last_name
+                        )}
+                      />
                       <div className="flex-1 min-w-0">
                         <CardTitle className="text-lg line-clamp-1">
                           {teacher.first_name} {teacher.last_name}
                         </CardTitle>
                         <div className="flex items-center text-sm text-gray-600 mt-1">
                           <MapPin className="w-3 h-3 mr-1" />
-                          <span className="truncate">{teacher.country}</span>
+                          <span className="truncate">
+                            {countriesMap.get(
+                              (teacher.country || "").toLowerCase()
+                            ) || ""}
+                          </span>
                         </div>
-                        {teacher.onboarding_completed && (
-                          <Badge className="bg-green-100 text-green-800 mt-2">
-                            Verified Teacher
-                          </Badge>
-                        )}
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {teacher.reviews?.average_rating && (
+                      <div className="flex items-center justify-center md:justify-start mb-4">
+                        <Stars rating={teacher.reviews.average_rating} />
+                        <span className="ml-2 text-sm text-gray-600">
+                          ({teacher.reviews.total_reviews || 0}{" "}
+                          {t("teacher.reviews", "reviews")})
+                        </span>
+                      </div>
+                    )}
                     {/* Biography */}
                     {teacher.biography && (
                       <p className="text-gray-600 text-sm line-clamp-3">
@@ -268,7 +249,7 @@ function TeachersListing() {
                         <Clock className="h-4 w-4 mr-2" />
                         <span>{teacher.timezone}</span>
                       </div>
-                      {teacher.courses_count !== undefined && (
+                      {teacher.courses_count && (
                         <div className="flex items-center text-sm text-gray-600">
                           <User className="h-4 w-4 mr-2" />
                           <span>{teacher.courses_count} courses</span>

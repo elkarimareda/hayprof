@@ -3,89 +3,30 @@ import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Globe, CheckCircle, BookOpen } from "lucide-react";
+import { MapPin, Globe, BookOpen } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/utils/request";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import ReviewForm from "@/components/Reviews/FormReview";
 import { useAuth } from "@/hooks/useAuth";
-import type { Course } from "@/apis/courses";
+import type { Course } from "@/Models/Course";
 import Stars from "@/components/Reviews/Stars";
 import ListReviews from "@/components/Reviews/ListReviews";
 import type { Review } from "@/Models/Review";
+import { formatPrice, getInitials } from "@/lib/utils";
+import countries from "@/data/countries.json";
+import {
+  deleteReview,
+  getTeacherProfile,
+  getTeacherReviews,
+} from "@/apis/teachers";
+import type { Teacher } from "@/Models/Teacher";
+import VideoPlayer from "@/components/ui/VideoPlayer";
+import Avatar from "@/components/ui/Avatar";
 
 export const Route = createFileRoute("/_public/teacher/$id")({
   component: TeacherProfile,
 });
-
-interface Teacher {
-  id: number;
-  first_name: string;
-  last_name: string;
-  country: string;
-  timezone: string;
-  pricing: number;
-  biography?: string;
-  onboarding_completed: boolean;
-  photo_url?: string;
-  user: {
-    id: number;
-    name: string;
-    email: string;
-  };
-  certifications?: Array<{
-    id: number;
-    subject: string;
-    certificate: string;
-    issued_date?: string;
-    issuer?: string;
-  }>;
-  courses: Course[];
-  courses_count?: number;
-  students_count?: number;
-  rating?: number;
-  total_reviews?: number;
-  languages?: Array<{
-    id: number;
-    name: string;
-    code: string;
-    native_name: string;
-    proficiency_level: string;
-  }>;
-  experience_years?: number;
-  response_time?: string;
-}
-
-interface TeacherProfileData {
-  profile: Teacher;
-  reviews: Review[];
-  courses: Course[];
-}
-
-// API function to get teacher profile
-const getTeacherProfile = async (
-  teacherId: string
-): Promise<TeacherProfileData> => {
-  const response = await api.get<TeacherProfileData>(`/teachers/${teacherId}`);
-  return response.data;
-};
-
-// API function to get teacher reviews
-const getTeacherReviews = async (
-  teacherId: string
-): Promise<{ reviews: { data: Review[] } }> => {
-  const response = await api.get<{ reviews: { data: Review[] } }>(
-    `/teachers/${teacherId}/reviews`
-  );
-  return response.data;
-};
-
-// API function to delete review
-const deleteReview = async (reviewId: number): Promise<void> => {
-  await api.delete(`/reviews/${reviewId}`);
-};
 
 function TeacherProfile() {
   const { id } = Route.useParams();
@@ -105,8 +46,10 @@ function TeacherProfile() {
         const data = await getTeacherProfile(id);
         const dataReviews = await getTeacherReviews(id);
 
+        console.log(dataReviews.reviews);
+
         setTeacher(data.profile);
-        setReviews(dataReviews.reviews.data || []);
+        setReviews(dataReviews.reviews || []);
         setCourses(data.profile.courses);
       } catch (error) {
         console.error("Failed to fetch teacher profile:", error);
@@ -118,17 +61,6 @@ function TeacherProfile() {
 
     fetchTeacherProfile();
   }, [id, t]);
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-  };
-
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase();
-  };
 
   const handleReviewSubmitted = (reviewData: Review) => {
     // Check if this is an update to an existing review
@@ -150,16 +82,20 @@ function TeacherProfile() {
       // Update teacher stats for new reviews only
       if (teacher) {
         setTeacher((prev) =>
-          prev
+          prev?.reviews
             ? {
                 ...prev,
-                total_reviews: (prev.total_reviews || 0) + 1,
-                // Optionally recalculate rating
-                rating: prev.rating
-                  ? (prev.rating * (prev.total_reviews || 0) +
-                      reviewData.rating) /
-                    ((prev.total_reviews || 0) + 1)
-                  : reviewData.rating,
+                reviews: {
+                  ...prev.reviews,
+                  total_reviews: (prev.reviews.total_reviews || 0) + 1,
+                  // Optionally recalculate rating
+                  average_rating: prev.reviews.average_rating
+                    ? (prev.reviews.average_rating *
+                        (prev.reviews.total_reviews || 0) +
+                        reviewData.rating) /
+                      ((prev.reviews.total_reviews || 0) + 1)
+                    : reviewData.rating,
+                },
               }
             : null
         );
@@ -181,10 +117,16 @@ function TeacherProfile() {
       // Update teacher stats
       if (teacher) {
         setTeacher((prev) =>
-          prev
+          prev?.reviews
             ? {
                 ...prev,
-                total_reviews: Math.max((prev.total_reviews || 1) - 1, 0),
+                reviews: {
+                  ...prev.reviews,
+                  total_reviews: Math.max(
+                    (prev.reviews.total_reviews || 1) - 1,
+                    0
+                  ),
+                },
               }
             : null
         );
@@ -199,7 +141,7 @@ function TeacherProfile() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div>
         <div className="animate-pulse space-y-6">
           <div className="h-48 bg-gray-200 rounded-lg"></div>
           <div className="h-8 bg-gray-200 rounded w-1/3"></div>
@@ -214,7 +156,7 @@ function TeacherProfile() {
 
   if (!teacher) {
     return (
-      <div className="container mx-auto px-4 py-8 text-center">
+      <div>
         <h1 className="text-2xl font-bold text-gray-900 mb-4">
           {t("teacher.not_found", "Teacher not found")}
         </h1>
@@ -229,35 +171,38 @@ function TeacherProfile() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Teacher Header */}
+    <div>
       <Card className="mb-6">
         <CardHeader>
           <div className="flex flex-col md:flex-row gap-6">
-            <Avatar className="w-32 h-32 mx-auto md:mx-0">
-              <AvatarImage
-                src={teacher.photo_url}
-                alt={`${teacher.first_name} ${teacher.last_name}`}
-              />
-              <AvatarFallback className="text-2xl">
-                {getInitials(teacher.first_name, teacher.last_name)}
-              </AvatarFallback>
-            </Avatar>
-
+            <VideoPlayer
+              src={teacher.video_url}
+              thumbnail={teacher.thumbnail_video_url ?? teacher.photo_url}
+              className="w-full md:w-1/2"
+            />
             <div className="flex-1 text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
+                <Avatar
+                  image={teacher.photo_url}
+                  alt={`${teacher.first_name} ${teacher.last_name}`}
+                  fallback={getInitials(teacher.first_name, teacher.last_name)}
+                />
+
                 <h1 className="text-3xl font-bold text-gray-900">
                   {teacher.first_name} {teacher.last_name}
                 </h1>
-                {teacher.onboarding_completed && (
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                )}
               </div>
 
               <div className="flex items-center justify-center md:justify-start gap-4 text-gray-600 mb-4">
                 <div className="flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
-                  <span>{teacher.country}</span>
+                  <span>
+                    {
+                      countries.find(
+                        (c) => c.alpha2 === teacher.country.toLowerCase()
+                      )?.name
+                    }
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Globe className="w-4 h-4" />
@@ -265,42 +210,35 @@ function TeacherProfile() {
                 </div>
               </div>
 
-              {teacher.rating && (
+              {teacher.reviews?.average_rating && (
                 <div className="flex items-center justify-center md:justify-start mb-4">
-                  <Stars rating={teacher.rating} />
+                  <Stars rating={teacher.reviews.average_rating} />
                   <span className="ml-2 text-sm text-gray-600">
-                    ({teacher.total_reviews} {t("teacher.reviews", "reviews")})
+                    ({teacher.reviews.total_reviews || 0}{" "}
+                    {t("teacher.reviews", "reviews")})
                   </span>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {teacher.students_count || 0}
+              <div className="flex flex-col gap-4 mb-4">
+                <div className="flex items-center gap-4">
+                  <div className="text-2xl font-bold">
+                    {teacher.students?.length || 0}
                   </div>
                   <div className="text-sm text-gray-600">
                     {t("teacher.students", "Students")}
                   </div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    {teacher.courses_count || 0}
+                <div className="flex items-center gap-4">
+                  <div className="text-2xl font-bold">
+                    {teacher.courses.length || 0}
                   </div>
                   <div className="text-sm text-gray-600">
                     {t("teacher.courses", "Courses")}
                   </div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {teacher.experience_years || 0}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {t("teacher.years_exp", "Years Exp.")}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-600">
+                <div className="flex items-center gap-4">
+                  <div className="text-2xl font-bold ">
                     {formatPrice(teacher.pricing)}
                   </div>
                   <div className="text-sm text-gray-600">
@@ -362,7 +300,9 @@ function TeacherProfile() {
                         >
                           <span className="font-medium">{language.name}</span>
                           <Badge variant="outline" className="text-xs">
-                            {language.proficiency_level}
+                            {t(
+                              `language.proficiency.${language.proficiency_level}`
+                            )}
                           </Badge>
                         </div>
                       ))}
@@ -423,10 +363,7 @@ function TeacherProfile() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {courses?.map((course) => (
-                <Card
-                  key={course.id}
-                  className="hover:shadow-lg transition-shadow"
-                >
+                <Card key={course.id}>
                   <CardHeader>
                     <CardTitle className="line-clamp-2">
                       {course.title}
@@ -451,7 +388,7 @@ function TeacherProfile() {
                           </span>
                           <Badge variant="outline">
                             {t(
-                              `course.proficiency.${course.proficiency_level}`
+                              `language.proficiency.${course.proficiency_level}`
                             )}
                           </Badge>
                         </div>
@@ -498,7 +435,7 @@ function TeacherProfile() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">
-                    {t("review.reviews_title", "Student Reviews")}
+                    {t("review.reviews_title", "Reviews")}
                   </CardTitle>
                   <ReviewForm
                     teacherId={id}
@@ -514,19 +451,20 @@ function TeacherProfile() {
                     onEditComplete={() => setEditingReview(null)}
                   />
                 </div>
-                {teacher?.rating && teacher?.total_reviews && (
-                  <div className="flex items-center gap-4 pt-2">
-                    <div className="flex items-center gap-2">
-                      <Stars rating={teacher.rating} />
+                {teacher.reviews?.average_rating &&
+                  teacher.reviews?.total_reviews && (
+                    <div className="flex items-center gap-4 pt-2">
+                      <div className="flex items-center gap-2">
+                        <Stars rating={teacher.reviews.average_rating} />
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        {t("review.based_on_reviews", {
+                          count: teacher.reviews.total_reviews,
+                          defaultValue: "Based on {{count}} reviews",
+                        })}
+                      </span>
                     </div>
-                    <span className="text-sm text-gray-600">
-                      {t("review.based_on_reviews", {
-                        count: teacher.total_reviews,
-                        defaultValue: "Based on {{count}} reviews",
-                      })}
-                    </span>
-                  </div>
-                )}
+                  )}
               </CardHeader>
             </Card>
           </div>

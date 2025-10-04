@@ -12,7 +12,7 @@ function Stars({ rating }: Props) {
           key={index}
           className={`w-4 h-4 ${
             index < Math.floor(rating)
-              ? "text-yellow-400 fill-current"
+              ? "text-black fill-current"
               : "text-gray-300"
           }`}
         />

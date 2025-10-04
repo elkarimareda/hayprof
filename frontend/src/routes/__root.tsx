@@ -1,7 +1,6 @@
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import type { User } from "../Models/Auth";
-import LanguageSwitcher from "@/components/ui/LanguageSwitcher";
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -18,8 +17,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   component: () => (
     <div className="min-h-screen">
       <Outlet />
-      <LanguageSwitcher />
-      <TanStackRouterDevtools />
+      <TanStackRouterDevtools position="bottom-right" />
     </div>
   ),
 });

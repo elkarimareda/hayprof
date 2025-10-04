@@ -8,6 +8,8 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
+import { createFileRoute } from '@tanstack/react-router'
+
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PublicRouteImport } from './routes/_public'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
@@ -16,15 +18,24 @@ import { Route as PublicTeachersRouteImport } from './routes/_public/teachers'
 import { Route as PublicCoursesRouteImport } from './routes/_public/courses'
 import { Route as PublicAuthRouteImport } from './routes/_public/_auth'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/_app'
-import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard/index'
 import { Route as PublicTeacherIdRouteImport } from './routes/_public/teacher.$id'
 import { Route as PublicCourseIdRouteImport } from './routes/_public/course.$id'
 import { Route as PublicAuthRegisterRouteImport } from './routes/_public/_auth/register'
 import { Route as PublicAuthLoginRouteImport } from './routes/_public/_auth/login'
+import { Route as AuthenticatedDashboardDashboardRouteImport } from './routes/_authenticated/dashboard/_dashboard'
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/_app/profile'
 import { Route as AuthenticatedAppOnboardingRouteImport } from './routes/_authenticated/_app/onboarding'
 import { Route as AuthenticatedAppCourseRouteImport } from './routes/_authenticated/_app/course'
+import { Route as AuthenticatedDashboardDashboardIndexRouteImport } from './routes/_authenticated/dashboard/_dashboard/index'
 import { Route as PublicAuthAuthCallbackRouteImport } from './routes/_public/_auth/auth/callback'
+import { Route as AuthenticatedDashboardDashboardTeachersRouteImport } from './routes/_authenticated/dashboard/_dashboard/teachers'
+import { Route as AuthenticatedDashboardDashboardSubjectsRouteImport } from './routes/_authenticated/dashboard/_dashboard/subjects'
+import { Route as AuthenticatedDashboardDashboardStudentsRouteImport } from './routes/_authenticated/dashboard/_dashboard/students'
+import { Route as AuthenticatedDashboardDashboardCoursesRouteImport } from './routes/_authenticated/dashboard/_dashboard/courses'
+
+const AuthenticatedDashboardRouteImport = createFileRoute(
+  '/_authenticated/dashboard',
+)()
 
 const PublicRoute = PublicRouteImport.update({
   id: '/_public',
@@ -33,6 +44,11 @@ const PublicRoute = PublicRouteImport.update({
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const PublicIndexRoute = PublicIndexRouteImport.update({
   id: '/',
@@ -57,12 +73,6 @@ const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   id: '/_app',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedDashboardIndexRoute =
-  AuthenticatedDashboardIndexRouteImport.update({
-    id: '/dashboard/',
-    path: '/dashboard/',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 const PublicTeacherIdRoute = PublicTeacherIdRouteImport.update({
   id: '/teacher/$id',
   path: '/teacher/$id',
@@ -83,6 +93,11 @@ const PublicAuthLoginRoute = PublicAuthLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => PublicAuthRoute,
 } as any)
+const AuthenticatedDashboardDashboardRoute =
+  AuthenticatedDashboardDashboardRouteImport.update({
+    id: '/_dashboard',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
 const AuthenticatedAppProfileRoute = AuthenticatedAppProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -99,11 +114,41 @@ const AuthenticatedAppCourseRoute = AuthenticatedAppCourseRouteImport.update({
   path: '/course',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedDashboardDashboardIndexRoute =
+  AuthenticatedDashboardDashboardIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedDashboardDashboardRoute,
+  } as any)
 const PublicAuthAuthCallbackRoute = PublicAuthAuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
   getParentRoute: () => PublicAuthRoute,
 } as any)
+const AuthenticatedDashboardDashboardTeachersRoute =
+  AuthenticatedDashboardDashboardTeachersRouteImport.update({
+    id: '/teachers',
+    path: '/teachers',
+    getParentRoute: () => AuthenticatedDashboardDashboardRoute,
+  } as any)
+const AuthenticatedDashboardDashboardSubjectsRoute =
+  AuthenticatedDashboardDashboardSubjectsRouteImport.update({
+    id: '/subjects',
+    path: '/subjects',
+    getParentRoute: () => AuthenticatedDashboardDashboardRoute,
+  } as any)
+const AuthenticatedDashboardDashboardStudentsRoute =
+  AuthenticatedDashboardDashboardStudentsRouteImport.update({
+    id: '/students',
+    path: '/students',
+    getParentRoute: () => AuthenticatedDashboardDashboardRoute,
+  } as any)
+const AuthenticatedDashboardDashboardCoursesRoute =
+  AuthenticatedDashboardDashboardCoursesRouteImport.update({
+    id: '/courses',
+    path: '/courses',
+    getParentRoute: () => AuthenticatedDashboardDashboardRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/courses': typeof PublicCoursesRoute
@@ -112,12 +157,17 @@ export interface FileRoutesByFullPath {
   '/course': typeof AuthenticatedAppCourseRoute
   '/onboarding': typeof AuthenticatedAppOnboardingRoute
   '/profile': typeof AuthenticatedAppProfileRoute
+  '/dashboard': typeof AuthenticatedDashboardDashboardRouteWithChildren
   '/login': typeof PublicAuthLoginRoute
   '/register': typeof PublicAuthRegisterRoute
   '/course/$id': typeof PublicCourseIdRoute
   '/teacher/$id': typeof PublicTeacherIdRoute
-  '/dashboard': typeof AuthenticatedDashboardIndexRoute
+  '/dashboard/courses': typeof AuthenticatedDashboardDashboardCoursesRoute
+  '/dashboard/students': typeof AuthenticatedDashboardDashboardStudentsRoute
+  '/dashboard/subjects': typeof AuthenticatedDashboardDashboardSubjectsRoute
+  '/dashboard/teachers': typeof AuthenticatedDashboardDashboardTeachersRoute
   '/auth/callback': typeof PublicAuthAuthCallbackRoute
+  '/dashboard/': typeof AuthenticatedDashboardDashboardIndexRoute
 }
 export interface FileRoutesByTo {
   '/courses': typeof PublicCoursesRoute
@@ -126,11 +176,15 @@ export interface FileRoutesByTo {
   '/course': typeof AuthenticatedAppCourseRoute
   '/onboarding': typeof AuthenticatedAppOnboardingRoute
   '/profile': typeof AuthenticatedAppProfileRoute
+  '/dashboard': typeof AuthenticatedDashboardDashboardIndexRoute
   '/login': typeof PublicAuthLoginRoute
   '/register': typeof PublicAuthRegisterRoute
   '/course/$id': typeof PublicCourseIdRoute
   '/teacher/$id': typeof PublicTeacherIdRoute
-  '/dashboard': typeof AuthenticatedDashboardIndexRoute
+  '/dashboard/courses': typeof AuthenticatedDashboardDashboardCoursesRoute
+  '/dashboard/students': typeof AuthenticatedDashboardDashboardStudentsRoute
+  '/dashboard/subjects': typeof AuthenticatedDashboardDashboardSubjectsRoute
+  '/dashboard/teachers': typeof AuthenticatedDashboardDashboardTeachersRoute
   '/auth/callback': typeof PublicAuthAuthCallbackRoute
 }
 export interface FileRoutesById {
@@ -145,12 +199,18 @@ export interface FileRoutesById {
   '/_authenticated/_app/course': typeof AuthenticatedAppCourseRoute
   '/_authenticated/_app/onboarding': typeof AuthenticatedAppOnboardingRoute
   '/_authenticated/_app/profile': typeof AuthenticatedAppProfileRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/_authenticated/dashboard/_dashboard': typeof AuthenticatedDashboardDashboardRouteWithChildren
   '/_public/_auth/login': typeof PublicAuthLoginRoute
   '/_public/_auth/register': typeof PublicAuthRegisterRoute
   '/_public/course/$id': typeof PublicCourseIdRoute
   '/_public/teacher/$id': typeof PublicTeacherIdRoute
-  '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
+  '/_authenticated/dashboard/_dashboard/courses': typeof AuthenticatedDashboardDashboardCoursesRoute
+  '/_authenticated/dashboard/_dashboard/students': typeof AuthenticatedDashboardDashboardStudentsRoute
+  '/_authenticated/dashboard/_dashboard/subjects': typeof AuthenticatedDashboardDashboardSubjectsRoute
+  '/_authenticated/dashboard/_dashboard/teachers': typeof AuthenticatedDashboardDashboardTeachersRoute
   '/_public/_auth/auth/callback': typeof PublicAuthAuthCallbackRoute
+  '/_authenticated/dashboard/_dashboard/': typeof AuthenticatedDashboardDashboardIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -161,12 +221,17 @@ export interface FileRouteTypes {
     | '/course'
     | '/onboarding'
     | '/profile'
+    | '/dashboard'
     | '/login'
     | '/register'
     | '/course/$id'
     | '/teacher/$id'
-    | '/dashboard'
+    | '/dashboard/courses'
+    | '/dashboard/students'
+    | '/dashboard/subjects'
+    | '/dashboard/teachers'
     | '/auth/callback'
+    | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/courses'
@@ -175,11 +240,15 @@ export interface FileRouteTypes {
     | '/course'
     | '/onboarding'
     | '/profile'
+    | '/dashboard'
     | '/login'
     | '/register'
     | '/course/$id'
     | '/teacher/$id'
-    | '/dashboard'
+    | '/dashboard/courses'
+    | '/dashboard/students'
+    | '/dashboard/subjects'
+    | '/dashboard/teachers'
     | '/auth/callback'
   id:
     | '__root__'
@@ -193,12 +262,18 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/course'
     | '/_authenticated/_app/onboarding'
     | '/_authenticated/_app/profile'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/dashboard/_dashboard'
     | '/_public/_auth/login'
     | '/_public/_auth/register'
     | '/_public/course/$id'
     | '/_public/teacher/$id'
-    | '/_authenticated/dashboard/'
+    | '/_authenticated/dashboard/_dashboard/courses'
+    | '/_authenticated/dashboard/_dashboard/students'
+    | '/_authenticated/dashboard/_dashboard/subjects'
+    | '/_authenticated/dashboard/_dashboard/teachers'
     | '/_public/_auth/auth/callback'
+    | '/_authenticated/dashboard/_dashboard/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -221,6 +296,13 @@ declare module '@tanstack/react-router' {
       fullPath: ''
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_public/': {
       id: '/_public/'
@@ -257,13 +339,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/dashboard/': {
-      id: '/_authenticated/dashboard/'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardIndexRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_public/teacher/$id': {
       id: '/_public/teacher/$id'
       path: '/teacher/$id'
@@ -292,6 +367,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicAuthLoginRouteImport
       parentRoute: typeof PublicAuthRoute
     }
+    '/_authenticated/dashboard/_dashboard': {
+      id: '/_authenticated/dashboard/_dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardDashboardRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
     '/_authenticated/_app/profile': {
       id: '/_authenticated/_app/profile'
       path: '/profile'
@@ -313,12 +395,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppCourseRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/dashboard/_dashboard/': {
+      id: '/_authenticated/dashboard/_dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof AuthenticatedDashboardDashboardIndexRouteImport
+      parentRoute: typeof AuthenticatedDashboardDashboardRoute
+    }
     '/_public/_auth/auth/callback': {
       id: '/_public/_auth/auth/callback'
       path: '/auth/callback'
       fullPath: '/auth/callback'
       preLoaderRoute: typeof PublicAuthAuthCallbackRouteImport
       parentRoute: typeof PublicAuthRoute
+    }
+    '/_authenticated/dashboard/_dashboard/teachers': {
+      id: '/_authenticated/dashboard/_dashboard/teachers'
+      path: '/teachers'
+      fullPath: '/dashboard/teachers'
+      preLoaderRoute: typeof AuthenticatedDashboardDashboardTeachersRouteImport
+      parentRoute: typeof AuthenticatedDashboardDashboardRoute
+    }
+    '/_authenticated/dashboard/_dashboard/subjects': {
+      id: '/_authenticated/dashboard/_dashboard/subjects'
+      path: '/subjects'
+      fullPath: '/dashboard/subjects'
+      preLoaderRoute: typeof AuthenticatedDashboardDashboardSubjectsRouteImport
+      parentRoute: typeof AuthenticatedDashboardDashboardRoute
+    }
+    '/_authenticated/dashboard/_dashboard/students': {
+      id: '/_authenticated/dashboard/_dashboard/students'
+      path: '/students'
+      fullPath: '/dashboard/students'
+      preLoaderRoute: typeof AuthenticatedDashboardDashboardStudentsRouteImport
+      parentRoute: typeof AuthenticatedDashboardDashboardRoute
+    }
+    '/_authenticated/dashboard/_dashboard/courses': {
+      id: '/_authenticated/dashboard/_dashboard/courses'
+      path: '/courses'
+      fullPath: '/dashboard/courses'
+      preLoaderRoute: typeof AuthenticatedDashboardDashboardCoursesRouteImport
+      parentRoute: typeof AuthenticatedDashboardDashboardRoute
     }
   }
 }
@@ -338,14 +455,56 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
 const AuthenticatedAppRouteWithChildren =
   AuthenticatedAppRoute._addFileChildren(AuthenticatedAppRouteChildren)
 
+interface AuthenticatedDashboardDashboardRouteChildren {
+  AuthenticatedDashboardDashboardCoursesRoute: typeof AuthenticatedDashboardDashboardCoursesRoute
+  AuthenticatedDashboardDashboardStudentsRoute: typeof AuthenticatedDashboardDashboardStudentsRoute
+  AuthenticatedDashboardDashboardSubjectsRoute: typeof AuthenticatedDashboardDashboardSubjectsRoute
+  AuthenticatedDashboardDashboardTeachersRoute: typeof AuthenticatedDashboardDashboardTeachersRoute
+  AuthenticatedDashboardDashboardIndexRoute: typeof AuthenticatedDashboardDashboardIndexRoute
+}
+
+const AuthenticatedDashboardDashboardRouteChildren: AuthenticatedDashboardDashboardRouteChildren =
+  {
+    AuthenticatedDashboardDashboardCoursesRoute:
+      AuthenticatedDashboardDashboardCoursesRoute,
+    AuthenticatedDashboardDashboardStudentsRoute:
+      AuthenticatedDashboardDashboardStudentsRoute,
+    AuthenticatedDashboardDashboardSubjectsRoute:
+      AuthenticatedDashboardDashboardSubjectsRoute,
+    AuthenticatedDashboardDashboardTeachersRoute:
+      AuthenticatedDashboardDashboardTeachersRoute,
+    AuthenticatedDashboardDashboardIndexRoute:
+      AuthenticatedDashboardDashboardIndexRoute,
+  }
+
+const AuthenticatedDashboardDashboardRouteWithChildren =
+  AuthenticatedDashboardDashboardRoute._addFileChildren(
+    AuthenticatedDashboardDashboardRouteChildren,
+  )
+
+interface AuthenticatedDashboardRouteChildren {
+  AuthenticatedDashboardDashboardRoute: typeof AuthenticatedDashboardDashboardRouteWithChildren
+}
+
+const AuthenticatedDashboardRouteChildren: AuthenticatedDashboardRouteChildren =
+  {
+    AuthenticatedDashboardDashboardRoute:
+      AuthenticatedDashboardDashboardRouteWithChildren,
+  }
+
+const AuthenticatedDashboardRouteWithChildren =
+  AuthenticatedDashboardRoute._addFileChildren(
+    AuthenticatedDashboardRouteChildren,
+  )
+
 interface AuthenticatedRouteChildren {
   AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
-  AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRouteWithChildren
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
-  AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRouteWithChildren,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

@@ -3,6 +3,7 @@ import type { SocialAccount } from "@/apis/social";
 export const UserType = {
   student: "student",
   teacher: "teacher",
+  admin: "admin",
 } as const;
 
 export type UserType = (typeof UserType)[keyof typeof UserType];

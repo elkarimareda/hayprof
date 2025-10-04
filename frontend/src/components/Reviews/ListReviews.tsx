@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import type { Review } from "@/Models/Review";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Avatar from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/button";
 import { Edit, MessageCircle, Trash2 } from "lucide-react";
 import Stars from "./Stars";
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "react-i18next";
-import { format } from "date-fns";
+import { parseISO, format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 
 interface Props {
@@ -27,42 +27,61 @@ interface Props {
 }
 
 function ListReviews({ reviews, onEditReview, onDeleteReview }: Props) {
-  const [t] = useTranslation();
+  const { t } = useTranslation();
   const { user, isAuthenticated } = useAuth();
-  return reviews?.length === 0 ? (
-    <Card>
-      <CardContent className="text-center py-12">
-        <MessageCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
-          {t("teacher.no_reviews", "No reviews yet")}
-        </h3>
-        <p className="text-gray-600">
-          {t(
-            "teacher.no_reviews_message",
-            "This teacher hasn't received any reviews yet."
-          )}
-        </p>
-      </CardContent>
-    </Card>
-  ) : (
+
+  if (!reviews || reviews.length === 0) {
+    return (
+      <Card>
+        <CardContent className="text-center py-12">
+          <MessageCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {t("teacher.no_reviews", "No reviews yet")}
+          </h3>
+          <p className="text-gray-600">
+            {t(
+              "teacher.no_reviews_message",
+              "This teacher hasn't received any reviews yet."
+            )}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const formatCreatedAt = (isoOrDate?: string) => {
+    if (!isoOrDate) return "";
+    try {
+      const d = isoOrDate.includes("T")
+        ? parseISO(isoOrDate)
+        : new Date(isoOrDate);
+      return format(d, "MMMM d, yyyy");
+    } catch {
+      return "";
+    }
+  };
+
+  return (
     <div className="space-y-4">
-      {reviews?.map((review) => (
-        <Card>
+      {reviews.map((review) => (
+        <Card key={review.id}>
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
-              <Avatar>
-                <AvatarImage src={review.student?.photo_url} />
-                <AvatarFallback>
-                  {review.student?.name.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-
+              <Avatar
+                alt={review.student?.name}
+                image={review.student?.photo_url}
+                fallback={review.student?.name
+                  ?.split(" ")
+                  .map((n: string) => n[0])
+                  .join("")
+                  .toUpperCase()}
+              />
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-medium">{review.student?.name}</h4>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-500">
-                      {format(new Date(review.created_at), "MMMM d, yyyy")}
+                      {formatCreatedAt(review.created_at)}
                     </span>
                     {/* Edit/Delete buttons for user's own review */}
                     {isAuthenticated &&
@@ -73,6 +92,7 @@ function ListReviews({ reviews, onEditReview, onDeleteReview }: Props) {
                             size="sm"
                             onClick={() => onEditReview?.(review)}
                             className="h-8 w-8 p-0"
+                            aria-label={t("review.edit", "Edit review")}
                           >
                             <Edit className="h-3 w-3" />
                           </Button>
@@ -82,6 +102,7 @@ function ListReviews({ reviews, onEditReview, onDeleteReview }: Props) {
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                aria-label={t("review.delete", "Delete review")}
                               >
                                 <Trash2 className="h-3 w-3" />
                               </Button>
@@ -100,13 +121,13 @@ function ListReviews({ reviews, onEditReview, onDeleteReview }: Props) {
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>
-                                  {t("common.cancel", "Cancel")}
+                                  {t("cancel", "Cancel")}
                                 </AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() => onDeleteReview?.(review.id)}
                                   className="bg-red-600 hover:bg-red-700"
                                 >
-                                  {t("common.delete", "Delete")}
+                                  {t("delete", "Delete")}
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>

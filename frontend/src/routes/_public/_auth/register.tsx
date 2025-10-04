@@ -1,6 +1,6 @@
 // Register.tsx
 import { createFileRoute, Link } from "@tanstack/react-router";
-import api from "@/utils/request";
+import api from "@/lib/request";
 import { UserType } from "@/Models/Auth";
 import { Button } from "@/components/ui/button";
 import Field from "@/components/ui/Field";
@@ -67,12 +67,10 @@ function Register() {
 
   const onSubmit = async (data: UserRegistrationInputs<typeof type>) => {
     try {
-      const response = await api.post("/register", data);
-      console.log("Registration successful:", response.data);
+      await api.post("/register", data);
       navigate({ to: "/login" });
       toast.success(t("registration_success"));
     } catch (error: unknown) {
-      console.log("Registration error:", error);
       const axiosError = error as AxiosError<{ message: string }>;
       const errorMessage =
         axiosError.response?.data?.message || "Registration failed";

@@ -2,8 +2,8 @@ import type { PropsWithChildren } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
 import Logo from "@/assets/logo.svg?react";
 import UserMenu from "@/components/UserMenu";
-import { Button } from "@/components/ui/button";
-import { BookOpen, Users, Home } from "lucide-react";
+import { cx } from "class-variance-authority";
+import Footer from "../Footer";
 
 const App: React.FC<PropsWithChildren> = ({ children }) => {
   const location = useLocation();
@@ -12,17 +12,14 @@ const App: React.FC<PropsWithChildren> = ({ children }) => {
     {
       label: "Home",
       href: "/",
-      icon: Home,
     },
     {
       label: "Courses",
       href: "/courses",
-      icon: BookOpen,
     },
     {
       label: "Teachers",
       href: "/teachers",
-      icon: Users,
     },
   ];
 
@@ -34,69 +31,51 @@ const App: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <div className="flex-shrink-0">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+      {/* Navigation */}
+      <nav className="sticky top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
               <Link to="/">
-                <Logo className="w-28 h-auto" />
+                <Logo className="w-24 h-auto cursor-pointer" />
               </Link>
             </div>
-
-            {/* Navigation */}
-            <nav className="hidden md:flex space-x-1">
-              {navigationItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link key={item.href} to={item.href}>
-                    <Button
-                      variant={isActive(item.href) ? "default" : "ghost"}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
-                    >
-                      <Icon className="w-4 h-4" />
-                      {item.label}
-                    </Button>
-                  </Link>
-                );
-              })}
-            </nav>
-
-            {/* User Menu */}
-            <div className="flex items-center">
+            <div className="hidden md:flex items-center space-x-8">
+              {navigationItems.map((item) => (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={cx(" hover:text-purple-600 ", {
+                    "font-bold text-purple-800": isActive(item.href),
+                    "text-slate-700 font-medium": !isActive(item.href),
+                  })}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+            <div className="flex items-center space-x-4">
               <UserMenu />
+              {/* <button className="text-slate-700 hover:text-purple-600 font-medium">
+                Sign In
+              </button>
+              <button className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-xl font-medium hover:shadow-lg transition-all duration-300">
+                Get Started
+              </button> */}
             </div>
           </div>
         </div>
-
-        {/* Mobile Navigation */}
-        <div className="md:hidden border-t border-gray-200 bg-white">
-          <div className="flex justify-around py-2">
-            {navigationItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link key={item.href} to={item.href} className="flex-1">
-                  <Button
-                    variant={isActive(item.href) ? "default" : "ghost"}
-                    className="w-full flex flex-col items-center gap-1 py-2 text-xs"
-                    size="sm"
-                  >
-                    <Icon className="w-4 h-4" />
-                    {item.label}
-                  </Button>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </header>
-
+      </nav>
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main
+        className={
+          location.pathname === "/" ? "" : "max-w-7xl mx-auto px-6 py-4"
+        }
+      >
         {children}
       </main>
+      <Footer />
     </div>
   );
 };

@@ -1,25 +1,5 @@
-import api from "@/utils/request";
-
-export interface Subject {
-  id: number;
-  name: string;
-  code: string;
-  description?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Language {
-  id: number;
-  name: string;
-  code: string;
-  native_name?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
+import type { Language, Subject } from "@/Models/Common";
+import api from "@/lib/request";
 export interface SubjectsResponse {
   subjects: Subject[];
 }

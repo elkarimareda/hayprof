@@ -1,10 +1,11 @@
-import api from "@/utils/request";
+import api from "@/lib/request";
 import type { AxiosResponse } from "axios";
 
 export function uploadMedia(
   file: File | Blob,
   purpose: "introduction_video" | "profile_photo",
-  thumbnails?: File | Blob
+  thumbnails?: File | Blob,
+  isUser: boolean = false
 ): Promise<
   AxiosResponse<{
     id: number;
@@ -20,7 +21,7 @@ export function uploadMedia(
   }
   formData.append("media_purpose", purpose);
 
-  return api.post("/upload", formData, {
+  return api.post(isUser ? `${"/user/upload"}` : `${"/upload"}`, formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },

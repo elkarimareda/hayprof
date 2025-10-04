@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { getTimeZoneOptions } from "@/utils/date";
+import { getTimeZoneOptions } from "@/lib/date";
 
 interface TimeSlot {
   id: number;
@@ -333,7 +333,7 @@ const FormAvailability: React.FC<Props> = ({ onNext, onPrevious }) => {
           </SelectContent>
         </Select>
         {daysOfWeek.map((day) => (
-          <div key={day} className="bg-white rounded-lg shadow-md p-6">
+          <div key={day} className="bg-white rounded-lg p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                 <Clock size={20} />

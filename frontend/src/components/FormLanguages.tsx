@@ -9,8 +9,9 @@ import Field from "@/components/ui/Field";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, useMemo } from "react";
-import { getLanguages, type Language } from "@/apis/reference";
+import { getLanguages } from "@/apis/reference";
 import { toast } from "sonner";
+import type { Language } from "@/Models/Common";
 
 interface Props {
   onNext: (data: TeacherLanguagesRegistrationInputs) => void;
@@ -66,21 +67,20 @@ function FormLanguages({ onPrevious, onNext }: Props) {
   // Proficiency level options - using same structure as course proficiency
   const proficiencyOptions = useMemo(
     () => [
-      { label: t("course.proficiency.beginner"), value: "beginner" },
-      { label: t("course.proficiency.elementary"), value: "elementary" },
-      { label: t("course.proficiency.intermediate"), value: "intermediate" },
+      { label: t("language.proficiency.beginner"), value: "beginner" },
+      { label: t("language.proficiency.elementary"), value: "elementary" },
+      { label: t("language.proficiency.intermediate"), value: "intermediate" },
       {
-        label: t("course.proficiency.upper_intermediate"),
+        label: t("language.proficiency.upper_intermediate"),
         value: "upper_intermediate",
       },
-      { label: t("course.proficiency.advanced"), value: "advanced" },
-      { label: t("course.proficiency.proficient"), value: "proficient" },
+      { label: t("language.proficiency.advanced"), value: "advanced" },
+      { label: t("language.proficiency.proficient"), value: "proficient" },
     ],
     [t]
   );
 
   const onSubmit = async (data: TeacherLanguagesRegistrationInputs) => {
-    console.log("Languages form submitted with data:", data);
     onNext(data);
   };
 

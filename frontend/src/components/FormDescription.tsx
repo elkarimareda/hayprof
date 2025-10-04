@@ -28,7 +28,6 @@ function FormDescription({ onPrevious, onNext }: Props) {
   });
 
   const onSubmit = async (data: TeacherDescriptionRegistrationInputs) => {
-    console.log("Form submitted with data:", data);
     onNext({ description: data });
   };
 

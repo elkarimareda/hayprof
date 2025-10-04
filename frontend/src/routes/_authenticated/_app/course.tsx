@@ -8,10 +8,11 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
-import { getSubjects, type Subject } from "@/apis/reference";
+import { getSubjects } from "@/apis/reference";
 import { createCourse } from "@/apis/courses";
 import { toast } from "sonner";
 import { format, addWeeks } from "date-fns";
+import type { Subject } from "@/Models/Common";
 
 export const Route = createFileRoute("/_authenticated/_app/course")({
   beforeLoad: ({ context }) => {
@@ -78,15 +79,15 @@ function Course() {
   // Proficiency level options for language subjects
   const proficiencyOptions = useMemo(
     () => [
-      { label: t("course.proficiency.beginner"), value: "beginner" },
-      { label: t("course.proficiency.elementary"), value: "elementary" },
-      { label: t("course.proficiency.intermediate"), value: "intermediate" },
+      { label: t("language.proficiency.beginner"), value: "beginner" },
+      { label: t("language.proficiency.elementary"), value: "elementary" },
+      { label: t("language.proficiency.intermediate"), value: "intermediate" },
       {
-        label: t("course.proficiency.upper_intermediate"),
+        label: t("language.proficiency.upper_intermediate"),
         value: "upper_intermediate",
       },
-      { label: t("course.proficiency.advanced"), value: "advanced" },
-      { label: t("course.proficiency.proficient"), value: "proficient" },
+      { label: t("language.proficiency.advanced"), value: "advanced" },
+      { label: t("language.proficiency.proficient"), value: "proficient" },
     ],
     [t]
   );
@@ -238,7 +239,7 @@ function Course() {
                 <Field
                   control={form.control}
                   name="proficiency_level"
-                  label={t("course.proficiency_level")}
+                  label={t("language.proficiency_level")}
                   type="select"
                   options={proficiencyOptions}
                   error={form.formState.errors.proficiency_level}

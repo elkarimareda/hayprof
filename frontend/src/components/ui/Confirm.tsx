@@ -24,7 +24,6 @@ export function Confirm({
   onCancel,
   open,
 }: Props) {
-  console.log(open);
   return (
     <AlertDialog open={open}>
       <AlertDialogContent>

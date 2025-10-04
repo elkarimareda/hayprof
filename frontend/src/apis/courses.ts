@@ -1,38 +1,7 @@
-import api from "@/utils/request";
+import type { Course } from "@/Models/Course";
+import type { MeetingsResponse } from "@/Models/Meeting";
+import api from "@/lib/request";
 import type { CourseInputs } from "@/validators/courseSchema";
-
-export interface CourseSchedule {
-  id: number;
-  datetime_scheduled: string;
-  time_of_session: number; // duration in minutes
-}
-
-export interface Course {
-  id: number;
-  title: string;
-  subject: {
-    id: number;
-    name: string;
-    code: string;
-  };
-  proficiency_level?: string;
-  description: string;
-  thumbnail_url?: string;
-  price_per_student: number;
-  count_session: number;
-  duration_session: number;
-  min_students: number;
-  max_students: number;
-  schedules: CourseSchedule[];
-  teacher?: {
-    id: number;
-    first_name: string;
-    last_name: string;
-  };
-  is_active: boolean;
-  is_validated: boolean;
-  created_at: string;
-}
 
 export interface CourseResponse {
   message: string;
@@ -98,23 +67,14 @@ export const createCourse = async (
   formData.append("max_students", data.max_students.toString());
   formData.append("course_date", data.course_date);
 
-  // Append schedule data
-  console.log("Schedule data before sending:", data.schedule);
-  console.log("Count session:", data.count_session);
-  console.log("Schedule length:", data.schedule.length);
-
   // Filter out empty schedules and reindex
   const validSchedules = data.schedule.filter(
     (schedule) => schedule.date && schedule.date.trim() !== ""
   );
-  console.log("Valid schedules:", validSchedules);
 
   validSchedules.forEach((schedule, index) => {
     formData.append(`schedule[${index}][date]`, schedule.date);
-    console.log(`Adding schedule[${index}][date]:`, schedule.date);
   });
-
-  console.log("Form Data Entries:", Array.from(formData.entries()));
 
   const response = await api.post<CourseResponse>("/courses", formData, {
     headers: {
@@ -126,7 +86,7 @@ export const createCourse = async (
 };
 
 /**
- * Get teacher's courses
+ * Get all courses
  */
 export const getCourses = async (): Promise<CoursesResponse> => {
   const response = await api.get<CoursesResponse>("/courses");
@@ -144,8 +104,12 @@ export const getCourse = async (courseId: string): Promise<Course> => {
 /**
  * Get a meeting by course ID
  */
-export const getCourseMeeting = async (courseId: string): Promise<unknown> => {
-  const response = await api.get<unknown>(`/courses/${courseId}/meetings`);
+export const getCourseMeeting = async (
+  courseId: string
+): Promise<MeetingsResponse> => {
+  const response = await api.get<MeetingsResponse>(
+    `/courses/${courseId}/meetings`
+  );
   return response.data;
 };
 
@@ -177,26 +141,14 @@ export const getValidatedCourses = async (
 };
 
 /**
- * Validate a course (admin only)
+ * Review a course (admin only)
  */
-export const validateCourse = async (
+export const ReviewingCourse = async (
+  review: "reject" | "validate",
   courseId: number,
   notes?: string
 ): Promise<{ message: string; course: Partial<Course> }> => {
-  const response = await api.post(`/courses/${courseId}/validate`, {
-    validation_notes: notes,
-  });
-  return response.data;
-};
-
-/**
- * Reject a course (admin only)
- */
-export const rejectCourse = async (
-  courseId: number,
-  notes: string
-): Promise<{ message: string; course: Partial<Course> }> => {
-  const response = await api.post(`/courses/${courseId}/reject`, {
+  const response = await api.post(`/courses/${courseId}/${review}`, {
     validation_notes: notes,
   });
   return response.data;
@@ -266,7 +218,7 @@ export const unenrollFromCourse = async (
 };
 
 export const joinCourseMeeting = async (
-  meetingId: number,
+  meetingId: string,
   username: string,
   password: string,
   is_moderator: boolean = false

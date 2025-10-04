@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 
 @import "tailwindcss";
 @layer base {
@@ -13,10 +13,10 @@
 
 :root {
   /* Professional Blue & Yellow Palette with Good Contrast */
-  --hayprof-deep-blue: #4955A5;        /* Primary - Deep Blue (base color) */
-  --hayprof-bright-yellow: #FED628;    /* Secondary - Bright Yellow (base color) */
-  --hayprof-light-blue: #6B75C7;       /* Accent - Lighter Blue (harmony) */
-  --hayprof-soft-yellow: #FFF4A3;      /* Background - Soft Yellow (harmony) */
+  --hayprof-deep-blue: #4955a5; /* Primary - Deep Blue (base color) */
+  --hayprof-bright-yellow: #fed628; /* Secondary - Bright Yellow (base color) */
+  --hayprof-light-blue: #6b75c7; /* Accent - Lighter Blue (harmony) */
+  --hayprof-soft-yellow: #fff4a3; /* Background - Soft Yellow (harmony) */
 
   --radius: 0.625rem;
   --background: #ffffff;
@@ -65,17 +65,8 @@
   width: 100%;
 }
 
-a {
-  font-weight: 500;
-  color: var(--hayprof-deep-blue);
-  text-decoration: inherit;
-  transition: color 0.2s ease;
-}
-a:hover {
-  color: var(--hayprof-light-blue);
-}
-
 body {
+  font-family: "Inter", sans-serif;
   margin: 0;
   display: flex;
   place-items: center;
@@ -113,7 +104,7 @@ button {
 
 .hayprof-card-hover:hover {
   border-color: var(--hayprof-light-blue);
-  box-shadow: 0 4px 20px rgba(107, 117, 199, 0.15);
+  /* box-shadow: 0 4px 20px rgba(107, 117, 199, 0.15); */
   transform: translateY(-2px);
 }
 
@@ -276,7 +267,7 @@ button {
 /* Dark mode specific Hayprof utilities */
 .dark .hayprof-card-hover:hover {
   border-color: var(--hayprof-accent-peach);
-  box-shadow: 0 4px 20px rgba(255, 219, 182, 0.15);
+  /* box-shadow: 0 4px 20px rgba(255, 219, 182, 0.15); */
 }
 
 .dark .hayprof-button-primary {

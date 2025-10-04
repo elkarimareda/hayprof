@@ -10,7 +10,7 @@ import FormPhoto from "@/components/FormPhoto";
 import FormPricing from "@/components/FormPricing";
 import FormVideo from "@/components/FormVideo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import api from "@/utils/request";
+import api from "@/lib/request";
 import type {
   TeacherAboutRegistrationInputs,
   TeacherCertificationRegistrationInputs,
@@ -76,7 +76,6 @@ function Onboarding() {
       | { availabilities: AvailabilityData; timezone: string }
       | TeacherPricingRegistrationInputs
   ) => {
-    console.log("Data received:", data);
     if (
       (step === OnboardingStep.VIDEO || step === OnboardingStep.PHOTO) &&
       data
@@ -129,8 +128,6 @@ function Onboarding() {
         ...data,
       };
 
-      console.log(finalData);
-
       try {
         // Submit final onboarding data to backend
         // ... your API calls to save data ...
@@ -172,7 +169,7 @@ function Onboarding() {
     <div className="flex flex-col items-center justify-center ">
       <nav
         aria-label="Progress"
-        className="flex items-center divide-x border bg-card w-full justify-center py-2 rounded-xl shadow-sm"
+        className="flex items-center divide-x border bg-card w-full justify-center py-2 rounded-xl"
       >
         <ol className={styleStepper(OnboardingStep.ABOUT)}>
           {t("onboarding.about")}

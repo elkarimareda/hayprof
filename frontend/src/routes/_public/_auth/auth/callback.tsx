@@ -5,11 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { z } from "zod";
 
 // User data interface for decoded user information
+import type { UserType } from "@/Models/Auth";
+
 interface UserData {
   id: number;
   name: string;
   email: string;
-  user_type: string;
+  user_type: UserType;
   avatar?: string;
   provider: string;
 }
@@ -53,8 +55,6 @@ function AuthCallback() {
             // Store authentication data
             localStorage.setItem("auth-token", search.token);
             localStorage.setItem("user", JSON.stringify(userData));
-
-            console.log("Decoded user data:", userData);
 
             // Redirect to dashboard after a brief delay
             setTimeout(() => {

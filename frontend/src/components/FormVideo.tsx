@@ -1,4 +1,4 @@
-import { type TeacherVideoRegistrationInputs } from "@/validators/onboarding/teacherSchema";
+import type { TeacherVideoRegistrationInputs } from "@/validators/onboarding/teacherSchema";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import Recorder from "@/components/Recorder";
@@ -17,9 +17,8 @@ function FormVideo({ onPrevious, onNext, isLoading }: Props) {
   const [video, setVideo] = useState<Blob | null>(null);
   const [thumbnails, setThumbnails] = useState<Blob | undefined>(undefined);
 
-  const handleRecorded = async (blob: Blob, filename?: string) => {
+  const handleRecorded = async (blob: Blob) => {
     setVideo(blob);
-    console.log("Video recorded:", blob, filename);
   };
 
   return (

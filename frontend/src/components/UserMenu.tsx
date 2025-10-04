@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Avatar from "@/components/ui/Avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,26 +27,18 @@ function UserMenu() {
       .slice(0, 2);
   };
 
-  const getProfilePhotoUrl = () => {
-    return user?.profile.photo_url || null;
-  };
-
-  return isAuthenticated ? (
+  return isAuthenticated && user ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           className="relative h-10 w-10 rounded-full p-0 hover:bg-accent/10 focus-visible:ring-2 focus-visible:ring-primary"
         >
-          <Avatar className="h-10 w-10">
-            <AvatarImage
-              src={getProfilePhotoUrl() || undefined}
-              alt={user?.name || "User"}
-            />
-            <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
-              {user?.name ? getInitials(user.name) : "U"}
-            </AvatarFallback>
-          </Avatar>
+          <Avatar
+            image={user.profile?.photo_url}
+            alt={user.name}
+            fallback={getInitials(user.name)}
+          />
         </Button>
       </DropdownMenuTrigger>
 
@@ -55,41 +47,45 @@ function UserMenu() {
         align="end"
         forceMount
       >
-        <DropdownMenuLabel className="font-normal p-3">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none text-card-foreground">
-              {user?.name || "User"}
-            </p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user?.email}
-            </p>
-            <p className="text-xs leading-none text-muted-foreground capitalize">
-              {user?.user_type}
-            </p>
-          </div>
-        </DropdownMenuLabel>
+        {user?.user_type !== "admin" && (
+          <>
+            <DropdownMenuLabel className="font-normal p-3">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none text-card-foreground">
+                  {user?.name || "User"}
+                </p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user?.email}
+                </p>
+                <p className="text-xs leading-none text-muted-foreground capitalize">
+                  {user?.user_type}
+                </p>
+              </div>
+            </DropdownMenuLabel>
 
-        <DropdownMenuSeparator className="bg-border" />
+            <DropdownMenuSeparator className="bg-border" />
 
-        <DropdownMenuItem
-          onClick={() => router.navigate({ to: "/profile" })}
-          className="px-3 py-2 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive transition-colors cursor-pointer"
-        >
-          <User className="mr-2 h-4 w-4" />
-          <span>{t("profile")}</span>
-        </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => router.navigate({ to: "/profile" })}
+              className="px-3 py-2 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive transition-colors cursor-pointer"
+            >
+              <User className="mr-2 h-4 w-4" />
+              <span>{t("profile")}</span>
+            </DropdownMenuItem>
 
-        {user?.user_type === "teacher" && (
-          <DropdownMenuItem
-            onClick={() => router.navigate({ to: "/course" })}
-            className="px-3 py-2 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive transition-colors cursor-pointer"
-          >
-            <BookOpen className="mr-2 h-4 w-4" />
-            <span>{t("new_course")}</span>
-          </DropdownMenuItem>
+            {user?.user_type === "teacher" && (
+              <DropdownMenuItem
+                onClick={() => router.navigate({ to: "/course" })}
+                className="px-3 py-2 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive transition-colors cursor-pointer"
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                <span>{t("new_course")}</span>
+              </DropdownMenuItem>
+            )}
+
+            <DropdownMenuSeparator className="bg-border" />
+          </>
         )}
-
-        <DropdownMenuSeparator className="bg-border" />
 
         <DropdownMenuItem
           onClick={() => logout()}

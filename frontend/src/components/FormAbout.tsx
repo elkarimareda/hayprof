@@ -11,9 +11,10 @@ import { Form } from "@/components/ui/form";
 import countries from "@/data/countries.json";
 import axios from "axios";
 import { format, subYears } from "date-fns";
-import { getLanguages, type Language } from "@/apis/reference";
+import { getLanguages } from "@/apis/reference";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import type { Language } from "@/Models/Common";
 
 interface Props {
   onNext: (data: TeacherAboutRegistrationInputs) => void;
@@ -71,16 +72,16 @@ function FormAbout({ onNext }: Props) {
   // Proficiency level options - using same structure as course proficiency
   const proficiencyOptions = useMemo(
     () => [
-      { label: t("course.proficiency.native"), value: "native" },
-      { label: t("course.proficiency.beginner"), value: "beginner" },
-      { label: t("course.proficiency.elementary"), value: "elementary" },
-      { label: t("course.proficiency.intermediate"), value: "intermediate" },
+      { label: t("language.proficiency.native"), value: "native" },
+      { label: t("language.proficiency.beginner"), value: "beginner" },
+      { label: t("language.proficiency.elementary"), value: "elementary" },
+      { label: t("language.proficiency.intermediate"), value: "intermediate" },
       {
-        label: t("course.proficiency.upper_intermediate"),
+        label: t("language.proficiency.upper_intermediate"),
         value: "upper_intermediate",
       },
-      { label: t("course.proficiency.advanced"), value: "advanced" },
-      { label: t("course.proficiency.proficient"), value: "proficient" },
+      { label: t("language.proficiency.advanced"), value: "advanced" },
+      { label: t("language.proficiency.proficient"), value: "proficient" },
     ],
     [t]
   );
@@ -93,12 +94,10 @@ function FormAbout({ onNext }: Props) {
           "https://ipapi.co/json?access_key=f0225e9aa8d65a03d8edfcf5578ee502"
         );
         if (response.data.country_code) {
-          console.log("Detected country:", response.data.country_code);
           form.setValue("country", response.data.country_code);
           localStorage.setItem("hayprof_country", response.data.country_code);
         }
-      } catch (error) {
-        console.log("Failed to detect country:", error);
+      } catch {
         // Fallback to browser language detection
         if (typeof window !== "undefined" && window.navigator.language) {
           const lang = window.navigator.language;
@@ -119,7 +118,6 @@ function FormAbout({ onNext }: Props) {
   }, [form]);
 
   const onSubmit = async (data: TeacherAboutRegistrationInputs) => {
-    console.log("Form submitted with data:", data);
     onNext(data);
   };
 

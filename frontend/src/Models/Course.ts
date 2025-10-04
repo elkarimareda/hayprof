@@ -1,29 +1,36 @@
-export default interface Course {
+export interface CourseSchedule {
+  id: number;
+  datetime_scheduled: string;
+  time_of_session: number; // duration in minutes
+}
+export interface Course {
   id: number;
   title: string;
-  subject: Subject;
-  proficiency_level: string;
+  subject: {
+    id: number;
+    name: string;
+    code: string;
+    description?: string;
+    is_active?: boolean;
+    created_at?: string;
+    updated_at?: string;
+  };
+  proficiency_level?: string;
   description: string;
-  thumbnail_url: string;
-  price_per_student: string;
-  number_of_hours: number | null;
+  thumbnail_url?: string;
+  price_per_student: number;
+  count_session: number;
+  duration_session: number;
   min_students: number;
   max_students: number;
-  schedules: Schedule[];
+  schedules: CourseSchedule[];
+  teacher: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    photo_url?: string;
+  };
   is_active: boolean;
   is_validated: boolean;
   created_at: string;
-}
-
-interface Schedule {
-  id: number;
-  day_of_week: string | null;
-  start_time: string | null;
-  end_time: string | null;
-}
-
-interface Subject {
-  id: number;
-  name: string;
-  code: string;
 }

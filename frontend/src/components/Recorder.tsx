@@ -146,8 +146,6 @@ const Recorder: React.FC<RecorderProps> = ({
       };
 
       mr.onstop = () => {
-        console.log("Recording stopped, chunks:", chunksRef.current.length);
-
         if (chunksRef.current.length === 0) {
           console.error("No data recorded");
           // Still clean up the stream even if no data was recorded

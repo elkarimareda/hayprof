@@ -31,7 +31,6 @@ function FormEducation({ onPrevious, onNext }: Props) {
   });
 
   const onSubmit = async (data: TeacherEducationRegistrationInputs) => {
-    console.log("Form submitted with data:", data);
     onNext(data);
   };
 

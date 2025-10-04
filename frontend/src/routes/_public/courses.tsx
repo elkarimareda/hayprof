@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
-import { getValidatedCourses, type Course } from "@/apis/courses";
-import { getSubjects, type Subject } from "@/apis/reference";
+import { getValidatedCourses } from "@/apis/courses";
+import type { Course } from "@/Models/Course";
+import { getSubjects } from "@/apis/reference";
 import {
   Select,
   SelectContent,
@@ -15,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, DollarSign, User, BookOpen } from "lucide-react";
 import { toast } from "sonner";
+import type { Subject } from "@/Models/Common";
+import { formatPrice } from "@/lib/utils";
 
 export const Route = createFileRoute("/_public/courses")({
   component: CoursesListing,
@@ -67,13 +70,6 @@ function CoursesListing() {
     setSelectedSubject(value === "all" ? "" : value);
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-  };
-
   const getProficiencyColor = (level?: string) => {
     switch (level) {
       case "beginner":
@@ -94,7 +90,7 @@ function CoursesListing() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           {t("courses.browse_title", "Browse Courses")}
@@ -117,15 +113,12 @@ function CoursesListing() {
             >
               <SelectTrigger>
                 <SelectValue
-                  placeholder={t(
-                    "courses.filter_by_subject",
-                    "Filter by subject"
-                  )}
+                  placeholder={t("filter_by_subject", "Filter by subject")}
                 />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">
-                  {t("courses.all_subjects", "All Subjects")}
+                  {t("all_subjects", "All Subjects")}
                 </SelectItem>
                 {subjects.map((subject) => (
                   <SelectItem key={subject.id} value={subject.id.toString()}>
@@ -186,11 +179,18 @@ function CoursesListing() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {courses.map((course) => (
-                <Card
-                  key={course.id}
-                  className="hover:shadow-lg transition-shadow duration-200"
-                >
+                <Card key={course.id}>
                   <CardHeader>
+                    {/* Thumbnail */}
+                    {course.thumbnail_url && (
+                      <div className="mb-4">
+                        <img
+                          src={course.thumbnail_url}
+                          alt={course.title}
+                          className="w-full h-32 object-cover rounded-md"
+                        />
+                      </div>
+                    )}
                     <div className="flex justify-between items-start mb-2">
                       <CardTitle className="text-lg line-clamp-2">
                         {course.title}
@@ -204,32 +204,21 @@ function CoursesListing() {
                         className={`w-fit ${getProficiencyColor(course.proficiency_level)}`}
                       >
                         {t(
-                          `proficiency.${course.proficiency_level}`,
+                          `language.proficiency.${course.proficiency_level}`,
                           course.proficiency_level
                         )}
                       </Badge>
                     )}
                   </CardHeader>
                   <CardContent>
-                    {/* Thumbnail */}
-                    {course.thumbnail_url && (
-                      <div className="mb-4">
-                        <img
-                          src={course.thumbnail_url}
-                          alt={course.title}
-                          className="w-full h-32 object-cover rounded-md"
-                        />
-                      </div>
-                    )}
-
                     {/* Description */}
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                    <p className="text-gray-600 text-sm font-bold mb-4 line-clamp-3">
                       {course.description}
                     </p>
 
                     {/* Course details */}
                     <div className="space-y-2 mb-4">
-                      <div className="flex items-center text-sm text-gray-600">
+                      <div className="flex items-center text-xs text-gray-600">
                         <User className="h-4 w-4 mr-2" />
                         <span>
                           {course.teacher?.first_name}{" "}
@@ -240,7 +229,7 @@ function CoursesListing() {
                         <Clock className="h-4 w-4 mr-2" />
                         <span>{course.number_of_hours} hours</span>
                       </div> */}
-                      <div className="flex items-center text-sm text-gray-600">
+                      <div className="flex items-center text-xs text-gray-600">
                         <Users className="h-4 w-4 mr-2" />
                         <span>
                           {course.min_students}-{course.max_students} students

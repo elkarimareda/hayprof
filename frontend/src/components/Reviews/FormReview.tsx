@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import api from "@/utils/request";
+import api from "@/lib/request";
 import type { Review } from "@/Models/Review";
 
 interface ReviewFormData {
@@ -249,7 +249,7 @@ export default function ReviewForm({
               onClick={() => handleDialogClose(false)}
               disabled={isSubmitting}
             >
-              {t("common.cancel", "Cancel")}
+              {t("cancel", "Cancel")}
             </Button>
             <Button
               type="submit"

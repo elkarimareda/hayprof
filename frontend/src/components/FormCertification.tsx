@@ -33,7 +33,6 @@ function FormCertification({ onPrevious, onNext }: Props) {
   });
 
   const onSubmit = async (data: TeacherCertificationRegistrationInputs) => {
-    console.log("Form submitted with data:", data);
     onNext(data);
   };
 

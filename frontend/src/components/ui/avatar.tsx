@@ -1,51 +1,32 @@
-import * as React from "react"
-import * as AvatarPrimitive from "@radix-ui/react-avatar"
-
-import { cn } from "@/lib/utils"
+import { cx } from "class-variance-authority";
 
 function Avatar({
   className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Root>) {
+  image,
+  alt,
+  fallback,
+}: {
+  className?: string;
+  image?: string | null;
+  alt: string;
+  fallback?: string;
+}) {
   return (
-    <AvatarPrimitive.Root
-      data-slot="avatar"
-      className={cn(
-        "relative flex size-8 shrink-0 overflow-hidden rounded-full",
+    <div
+      className={cx(
+        "relative rounded-full aspect-square overflow-hidden border w-16",
         className
       )}
-      {...props}
-    />
-  )
-}
-
-function AvatarImage({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
-  return (
-    <AvatarPrimitive.Image
-      data-slot="avatar-image"
-      className={cn("aspect-square size-full", className)}
-      {...props}
-    />
-  )
-}
-
-function AvatarFallback({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
-  return (
-    <AvatarPrimitive.Fallback
-      data-slot="avatar-fallback"
-      className={cn(
-        "bg-muted flex size-full items-center justify-center rounded-full",
-        className
+    >
+      {image ? (
+        <img src={image} alt={alt} className="object-contain w-full h-full" />
+      ) : (
+        <div className="flex items-center justify-center w-full h-full text-2xl">
+          {fallback}
+        </div>
       )}
-      {...props}
-    />
-  )
+    </div>
+  );
 }
 
-export { Avatar, AvatarImage, AvatarFallback }
+export default Avatar;

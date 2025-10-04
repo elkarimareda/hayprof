@@ -25,7 +25,6 @@ function FormPricing({ onPrevious, onNext }: Props) {
   });
 
   const onSubmit = async (data: TeacherPricingRegistrationInputs) => {
-    console.log("Form submitted with data:", data);
     onNext(data);
   };
 

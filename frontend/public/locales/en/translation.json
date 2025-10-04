@@ -56,6 +56,20 @@
   "new_course": "Create a New Course",
   "minutes_one": "{{count}} minute",
   "minutes_other": "{{count}} minutes",
+  "all_subjects": "All Subjects",
+  "filter_by_subject": "Filter by subject",
+  "overview": "Overview",
+  "language": {
+    "proficiency": {
+      "native": "Native",
+      "beginner": "Beginner (A1)",
+      "elementary": "Elementary (A2)",
+      "intermediate": "Intermediate (B1)",
+      "upper_intermediate": "Upper Intermediate (B2)",
+      "advanced": "Advanced (C1)",
+      "proficient": "Proficient (C2)"
+    }
+  },
   "descriptions": {
     "yourself": "Introduce yourself",
     "experience": "Teaching experience",
@@ -87,6 +101,8 @@
     }
   },
   "course": {
+    "confirm_unenroll_title": "Confirm Unenrollment",
+    "confirm_unenroll_desc": "Are you sure you want to unenroll from this course? You can re-enroll at any time if you change your mind.",
     "no_courses": "No courses found.",
     "title": "Course Title",
     "subject": "Subject",
@@ -117,15 +133,7 @@
     "schedule_auto_generated_datetime": "{{count}} session slots with date and time",
     "schedule_hours_info": "Scheduled: {{scheduled}}h / Minimum: {{required}}h {{match}}",
     "schedule_sessions_info": "Scheduled: {{scheduled}} sessions / Required: {{required}} sessions {{match}}",
-    "proficiency": {
-      "native": "Native",
-      "beginner": "Beginner (A1)",
-      "elementary": "Elementary (A2)",
-      "intermediate": "Intermediate (B1)",
-      "upper_intermediate": "Upper Intermediate (B2)",
-      "advanced": "Advanced (C1)",
-      "proficient": "Proficient (C2)"
-    },
+
     "enroll": "Enroll Now",
     "enroll_now": "Enroll Now",
     "enrolling": "Enrolling...",
@@ -196,7 +204,10 @@
     }
   },
   "teachers": {
+    "browse_title": "Find Prof",
+    "browse_subtitle": "Browse our list of qualified profs and find the perfect match for your learning needs.",
     "find_your_teacher": "Find your teacher",
+    "view_profile": "View Profile",
     "results_one": "{{count}} teacher found",
     "results_other": "{{count}} teachers found",
     "filter": "Filter",
@@ -217,8 +228,44 @@
     "no_teachers_found": "No teachers found. Please adjust your filters and try again."
   },
   "courses": {
+    "browse_title": "Find Courses",
+    "browse_subtitle": "Explore our wide range of courses and find the perfect one for you.",
     "results_count": "{{count}} courses found",
     "no_courses_message": "Try adjusting your filters or check back later.",
     "view_details": "View Details"
+  },
+  "user_profile": {
+    "certifications": "Certifications",
+    "education": "Education",
+    "about_myself": "About Myself",
+    "video_introduction": "Video Introduction",
+    "quick_stats": "Quick Stats",
+    "my_courses": "My Courses",
+    "create_course": "Create New Course",
+    "no_courses_created": "No courses created yet",
+    "course_creation_only_teachers": "Course creation is only available for teachers.",
+    "pricing": "Pricing",
+    "hourly_rate": "Hourly Rate",
+    "languages_spoken": "Languages Spoken",
+    "linked_accounts": "Linked Accounts",
+    "connected": "Connected",
+    "not_connected": "Not connected",
+    "security_information": "Security Information",
+    "my_enrollments": "My Enrollments",
+    "no_enrollments_found": "No enrollments found",
+    "no_enrollments_message": "You haven't enrolled in any courses yet. Browse our course catalog to get started!",
+    "enrolled_on": "Enrolled: ",
+    "edit_photo": "Edit Photo",
+    "photo_preview": "Photo Preview",
+    "preview_note": "Selected image preview"
+  },
+  "user_profile_social": {
+    "linked_accounts_desc": "Connect your social accounts for easier sign-in and enhanced security.",
+    "connected": "Connected",
+    "not_connected": "Not connected",
+    "unlinking": "Unlinking...",
+    "unlink": "Unlink",
+    "linking": "Linking...",
+    "link_account": "Link Account"
   }
 }

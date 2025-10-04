@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -20,18 +20,28 @@ import {
   getCourseEnrollment,
   getCourseEnrollments,
   unenrollFromCourse,
-  type Course,
   type Enrollment,
+  type EnrollmentResponse,
   getCourseMeeting,
   joinCourseMeeting,
 } from "@/apis/courses";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import Avatar from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import type { Meeting } from "@/Models/Meeting";
+import { formatPrice, getInitials } from "@/lib/utils";
+import { format } from "date-fns";
+import type { Course } from "@/Models/Course";
+import EnrollmentStatus from "@/components/EnrollmentStatus";
+import CourseActionButtons from "@/components/CourseActionButtons";
+import EnrollmentProgress from "@/components/EnrollmentProgress";
 
 export const Route = createFileRoute("/_public/course/$id")({
   component: CourseProfile,
 });
+
+// Constants
+const DEBOUNCE_TIMEOUT = 1000; // ms
 
 function CourseProfile() {
   const { id } = Route.useParams();
@@ -39,10 +49,15 @@ function CourseProfile() {
   const { user, isAuthenticated } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
+  // State management
   const [enrolling, setEnrolling] = useState(false);
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [checkingEnrollment, setCheckingEnrollment] = useState(false);
   const [enrolledStudentsCount, setEnrolledStudentsCount] = useState<number>(0);
+  const [confirmUnenrollOpen, setConfirmUnenrollOpen] = useState(false);
+
+  // Prevent rapid repeated join calls
+  const isJoiningRef = useRef(false);
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -75,7 +90,6 @@ function CourseProfile() {
           setEnrollment(enrollmentData || null);
         } catch (error) {
           console.error("Failed to check enrollment:", error);
-          // Don't show error to user as this is just checking enrollment status
         } finally {
           setCheckingEnrollment(false);
         }
@@ -85,14 +99,12 @@ function CourseProfile() {
     const fetchEnrollmentCount = async () => {
       try {
         const enrollmentsData = await getCourseEnrollments(parseInt(id));
-        // Only count confirmed enrollments, not cancelled ones
         const confirmedEnrollments = enrollmentsData.enrollments.filter(
           (enrollment) => enrollment.status === "confirmed"
         );
         setEnrolledStudentsCount(confirmedEnrollments.length);
       } catch (error) {
         console.error("Failed to fetch enrollment count:", error);
-        // Don't show error to user, just keep count at 0
       }
     };
 
@@ -101,29 +113,15 @@ function CourseProfile() {
     fetchEnrollmentCount();
   }, [id, t, isAuthenticated, user]);
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
+  // Helper: safely read the runtime-injected meeting from a schedule object
+  const getMeetingFromSchedule = (schedule: unknown): Meeting | undefined => {
+    return (schedule as { meeting?: Meeting })?.meeting;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  const getDifficultyColor = (level?: string): string => {
+    if (!level) return "bg-gray-100 text-gray-800";
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase();
-  };
-
-  const getDifficultyColor = (level: string) => {
-    switch (level?.toLowerCase()) {
+    switch (level.toLowerCase()) {
       case "beginner":
         return "bg-green-100 text-green-800";
       case "intermediate":
@@ -132,37 +130,6 @@ function CourseProfile() {
         return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const handleEnrollment = async () => {
-    if (!isAuthenticated) {
-      toast.error(
-        t("course.login_required", "Please login to enroll in courses")
-      );
-      return;
-    }
-
-    if (user?.user_type !== "student") {
-      toast.error(
-        t("course.student_only", "Only students can enroll in courses")
-      );
-      return;
-    }
-
-    try {
-      setEnrolling(true);
-      const result = await enrollInCourse(parseInt(id));
-      setEnrollment(result.enrollment);
-      setEnrolledStudentsCount((prev) => prev + 1);
-      toast.success(
-        t("course.enrollment_success", "Successfully enrolled in course!")
-      );
-    } catch (error) {
-      console.error("Failed to enroll in course:", error);
-      toast.error(t("course.enrollment_error", "Failed to enroll in course"));
-    } finally {
-      setEnrolling(false);
     }
   };
 
@@ -185,36 +152,56 @@ function CourseProfile() {
     }
   };
 
+  const handleEnrollment = async () => {
+    try {
+      setEnrolling(true);
+      const resp: EnrollmentResponse = await enrollInCourse(parseInt(id));
+      if (resp?.enrollment) {
+        setEnrollment(resp.enrollment);
+        setEnrolledStudentsCount((prev) => prev + 1);
+        toast.success(t("course.enroll_success", "Successfully enrolled"));
+      } else {
+        toast.error(t("course.enroll_error", "Failed to enroll in course"));
+      }
+    } catch (error) {
+      console.error("Failed to enroll in course:", error);
+      toast.error(t("course.enroll_error", "Failed to enroll in course"));
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  // Enrollment status helpers
   const isEnrolled = !!enrollment && enrollment.status !== "cancelled";
   const isCancelled = !!enrollment && enrollment.status === "cancelled";
+  const isStudent = user?.user_type === "student";
+
   const canEnroll =
-    isAuthenticated &&
-    user?.user_type === "student" &&
-    (!isEnrolled || isCancelled);
+    isAuthenticated && isStudent && (!isEnrolled || isCancelled);
   const canUnenroll =
     isAuthenticated &&
-    user?.user_type === "student" &&
+    isStudent &&
     isEnrolled &&
     enrollment?.status === "confirmed";
 
+  // Loading state
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="animate-pulse space-y-6">
-          <div className="h-48 bg-gray-200 rounded-lg"></div>
-          <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-          <div className="space-y-2">
-            <div className="h-4 bg-gray-200 rounded"></div>
-            <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-          </div>
+      <div className="animate-pulse space-y-6">
+        <div className="h-48 bg-gray-200 rounded-lg"></div>
+        <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+        <div className="space-y-2">
+          <div className="h-4 bg-gray-200 rounded"></div>
+          <div className="h-4 bg-gray-200 rounded w-2/3"></div>
         </div>
       </div>
     );
   }
 
+  // Course not found state
   if (!course) {
     return (
-      <div className="container mx-auto px-4 py-8 text-center">
+      <div>
         <h1 className="text-2xl font-bold text-gray-900 mb-4">
           {t("course.not_found", "Course not found")}
         </h1>
@@ -228,32 +215,105 @@ function CourseProfile() {
     );
   }
 
-  const joinMeeting = (meeting: {
-    meeting_id: string;
-    username: string;
-    password: string;
-    is_moderator: boolean;
-  }) => {
-    console.log("Joining meeting:", meeting);
-    // Call the API to join the meeting
-    joinCourseMeeting(
-      meeting.meeting_id,
-      user?.name || "test",
-      meeting.moderator_password,
-      true
-    )
-      .then((data) => {
-        // Handle successful joining
-        console.log("Joined meeting:", data.join_url);
-      })
-      .catch((error) => {
-        // Handle errors
-        console.error("Failed to join meeting:", error);
-      });
+  const joinMeeting = async (meeting?: Meeting) => {
+    if (!meeting) {
+      toast.error(t("course.no_meeting", "Meeting not available"));
+      return;
+    }
+
+    // Require authentication
+    if (!isAuthenticated || !user) {
+      toast.error(
+        t("course.login_required", "Please login to join the meeting")
+      );
+      return;
+    }
+
+    // Authorization check: only enrolled students or course teacher can join
+    const isTeacher =
+      !!course?.teacher && String(user.id) === String(course.teacher.id);
+    const isStudentAndEnrolled = isStudent && isEnrolled;
+
+    if (!isTeacher && !isStudentAndEnrolled) {
+      toast.error(
+        t(
+          "course.join_not_allowed",
+          "Only enrolled students or the course teacher can join this meeting"
+        )
+      );
+      return;
+    }
+
+    // If a join is already in progress (or just happened), ignore subsequent calls
+    if (isJoiningRef.current) return;
+    isJoiningRef.current = true;
+
+    let newWindow: Window | null = null;
+    try {
+      const data = await joinCourseMeeting(
+        meeting.meeting_id,
+        user?.name || "test",
+        meeting.moderator_password,
+        true
+      );
+
+      // Open uniquely-named blank window to avoid popup blockers
+      const windowName = `join_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      newWindow = window.open("about:blank", windowName);
+
+      if (data?.join_url) {
+        if (newWindow) {
+          try {
+            // Security: null the opener reference
+            try {
+              (newWindow as Window & { opener?: Window | null }).opener = null;
+            } catch {
+              // Ignore browser restrictions
+            }
+            newWindow.location.replace(data.join_url);
+            newWindow.focus();
+          } catch {
+            // Fallback to current tab if navigation fails
+            window.location.assign(data.join_url);
+          }
+        } else {
+          // Popup blocked - navigate in current tab
+          window.location.assign(data.join_url);
+        }
+      } else {
+        // No URL returned - clean up and show error
+        if (newWindow && !newWindow.closed) {
+          try {
+            newWindow.close();
+          } catch {
+            // Ignore close errors
+          }
+        }
+        console.warn("No join_url returned from joinCourseMeeting", data);
+        toast.error(t("course.join_failed", "Failed to get meeting URL"));
+      }
+    } catch (error) {
+      console.error("Failed to join meeting:", error);
+      toast.error(t("course.join_error", "Failed to join meeting"));
+
+      // Clean up opened window on error
+      if (newWindow && !newWindow.closed) {
+        try {
+          newWindow.close();
+        } catch {
+          // Ignore close errors
+        }
+      }
+    } finally {
+      // Reset debounce after timeout
+      setTimeout(() => {
+        isJoiningRef.current = false;
+      }, DEBOUNCE_TIMEOUT);
+    }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div>
       {/* Course Header */}
       <Card className="mb-6">
         <CardHeader>
@@ -280,17 +340,6 @@ function CourseProfile() {
                     {course.title}
                   </h1>
                   <div className="flex items-center gap-2 mb-2">
-                    <Badge className="bg-blue-100 text-blue-800">
-                      {course.subject.name}
-                    </Badge>
-                    {course.proficiency_level && (
-                      <Badge
-                        className={getDifficultyColor(course.proficiency_level)}
-                      >
-                        {course.proficiency_level &&
-                          t(`course.proficiency.${course.proficiency_level}`)}
-                      </Badge>
-                    )}
                     {course.is_validated && (
                       <Badge className="bg-green-100 text-green-800">
                         <CheckCircle className="w-3 h-3 mr-1" />
@@ -326,108 +375,52 @@ function CourseProfile() {
               </p>
 
               {/* Course Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {course.count_session}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {t("course.sessions", "Sessions")}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {t("minutes", { count: course.duration_session })}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {t("course.per_session", "per session")}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-600">
-                    {course.min_students}-{course.max_students}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {t("course.students", "Students")}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    {enrolledStudentsCount}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {t("course.enrolled_students", "Enrolled")}
-                  </div>
+              <div className="flex gap-4 items-center mb-6">
+                <div className="">{t("course.subject", "Subject")} : </div>
+                <div className="text-xl font-bold ">
+                  {course.subject.name}{" "}
+                  <span className=" font-semibold text-sm">
+                    {course.proficiency_level &&
+                      t(`language.proficiency.${course.proficiency_level}`)}
+                  </span>
                 </div>
               </div>
+              <div className="flex gap-4 items-center mb-6">
+                <div className="">{t("course.sessions", "Sessions")} : </div>
+                <div className="text-xl font-bold ">
+                  {t("minutes", { count: course.duration_session })}{" "}
+                  <span className=" font-semibold text-sm">
+                    x {course.count_session}
+                  </span>
+                </div>
+              </div>
+
+              {/* Enrollment Progress Bar */}
+              <EnrollmentProgress
+                enrolledStudentsCount={enrolledStudentsCount}
+                max_students={course.max_students}
+              />
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                {canEnroll && (
-                  <Button
-                    size="lg"
-                    className="flex-1 sm:flex-none"
-                    onClick={handleEnrollment}
-                    disabled={enrolling || checkingEnrollment}
-                  >
-                    <Users className="w-4 h-4 mr-2" />
-                    {enrolling
-                      ? t("course.enrolling", "Enrolling...")
-                      : isCancelled
-                        ? t("course.re_enroll", "Re-enroll")
-                        : t("course.enroll", "Enroll Now")}
-                  </Button>
-                )}
-
-                {canUnenroll && (
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="flex-1 sm:flex-none text-red-600 border-red-600 hover:bg-red-50"
-                    onClick={handleUnenrollment}
-                    disabled={enrolling || checkingEnrollment}
-                  >
-                    <UserMinus className="w-4 h-4 mr-2" />
-                    {enrolling
-                      ? t("course.unenrolling", "Unenrolling...")
-                      : t("course.unenroll", "Unenroll")}
-                  </Button>
-                )}
-              </div>
+              <CourseActionButtons
+                canEnroll={canEnroll}
+                canUnenroll={canUnenroll}
+                enrolling={enrolling}
+                checkingEnrollment={checkingEnrollment}
+                isCancelled={isCancelled}
+                confirmUnenrollOpen={confirmUnenrollOpen}
+                onEnroll={handleEnrollment}
+                onUnenroll={handleUnenrollment}
+                onConfirmUnenrollOpen={setConfirmUnenrollOpen}
+              />
 
               {/* Enrollment Status Message */}
-              {!isAuthenticated && (
-                <p className="text-sm text-gray-600 mt-2">
-                  {t(
-                    "course.login_to_enroll",
-                    "Please login as a student to enroll in this course"
-                  )}
-                </p>
-              )}
-              {isAuthenticated && user?.user_type !== "student" && (
-                <p className="text-sm text-gray-600 mt-2">
-                  {t(
-                    "course.student_enrollment_only",
-                    "Only students can enroll in courses"
-                  )}
-                </p>
-              )}
-              {isEnrolled && (
-                <p className="text-sm text-green-600 mt-2">
-                  {t(
-                    "course.enrollment_confirmed",
-                    "You are enrolled in this course"
-                  )}
-                </p>
-              )}
-              {isCancelled && (
-                <p className="text-sm text-red-600 mt-2">
-                  {t(
-                    "course.enrollment_cancelled",
-                    "Your enrollment was cancelled. You can enroll again if you wish."
-                  )}
-                </p>
-              )}
+              <EnrollmentStatus
+                isAuthenticated={isAuthenticated}
+                userType={user?.user_type}
+                isEnrolled={isEnrolled}
+                isCancelled={isCancelled}
+              />
             </div>
           </div>
         </CardHeader>
@@ -455,16 +448,18 @@ function CourseProfile() {
                     <div
                       key={schedule.id}
                       className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                      onClick={() => joinMeeting(schedule.meeting)}
+                      onClick={() =>
+                        joinMeeting(getMeetingFromSchedule(schedule))
+                      }
                     >
                       <div className="flex items-center gap-3">
                         <Calendar className="w-4 h-4 text-blue-600" />
                         <div>
                           <div className="font-medium">
-                            {formatDate(schedule.datetime_scheduled)}
-                          </div>
-                          <div className="font-medium">
-                            {schedule.meeting.meeting_id}
+                            {format(
+                              schedule.datetime_scheduled,
+                              "MMMM d, yyyy, h:mm a"
+                            )}
                           </div>
                         </div>
                       </div>
@@ -505,7 +500,7 @@ function CourseProfile() {
                         course.proficiency_level || ""
                       )}
                     >
-                      {t(`course.proficiency.${course.proficiency_level}`) ||
+                      {t(`language.proficiency.${course.proficiency_level}`) ||
                         t("course.not_specified", "Not specified")}
                     </Badge>
                   </div>
@@ -533,7 +528,7 @@ function CourseProfile() {
                     {t("course.created_at", "Created")}:
                   </span>
                   <span className="font-medium">
-                    {new Date(course.created_at).toLocaleDateString()}
+                    {format(new Date(course.created_at), "MMMM d, yyyy")}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -570,14 +565,14 @@ function CourseProfile() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-4 mb-4">
-                  <Avatar className="w-12 h-12">
-                    <AvatarFallback>
-                      {getInitials(
-                        course.teacher.first_name,
-                        course.teacher.last_name
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Avatar
+                    alt={`${course.teacher.first_name} ${course.teacher.last_name}`}
+                    image={course.teacher.photo_url}
+                    fallback={getInitials(
+                      course.teacher.first_name,
+                      course.teacher.last_name
+                    )}
+                  />
                   <div>
                     <h4 className="font-medium">
                       {course.teacher.first_name} {course.teacher.last_name}
@@ -642,53 +637,24 @@ function CourseProfile() {
                   <span className="font-medium">{course.max_students}</span>
                 </div>
                 <div className="pt-2 border-t">
-                  {canEnroll && (
-                    <Button
-                      className="w-full"
-                      onClick={handleEnrollment}
-                      disabled={enrolling || checkingEnrollment}
-                    >
-                      <Users className="w-4 h-4 mr-2" />
-                      {enrolling
-                        ? t("course.enrolling", "Enrolling...")
-                        : isCancelled
-                          ? t("course.re_enroll", "Re-enroll")
-                          : t("course.enroll_now", "Enroll Now")}
-                    </Button>
-                  )}
+                  <CourseActionButtons
+                    canEnroll={canEnroll}
+                    canUnenroll={canUnenroll}
+                    enrolling={enrolling}
+                    checkingEnrollment={checkingEnrollment}
+                    isCancelled={isCancelled}
+                    confirmUnenrollOpen={confirmUnenrollOpen}
+                    onEnroll={handleEnrollment}
+                    onUnenroll={handleUnenrollment}
+                    onConfirmUnenrollOpen={setConfirmUnenrollOpen}
+                  />
 
-                  {canUnenroll && (
-                    <Button
-                      variant="outline"
-                      className="w-full text-red-600 border-red-600 hover:bg-red-50"
-                      onClick={handleUnenrollment}
-                      disabled={enrolling || checkingEnrollment}
-                    >
-                      <UserMinus className="w-4 h-4 mr-2" />
-                      {enrolling
-                        ? t("course.unenrolling", "Unenrolling...")
-                        : t("course.unenroll", "Unenroll")}
-                    </Button>
-                  )}
-
-                  {!canEnroll && !canUnenroll && (
-                    <div className="text-center text-gray-600 text-sm">
-                      {!isAuthenticated
-                        ? t(
-                            "course.login_to_enroll",
-                            "Please login as a student to enroll"
-                          )
-                        : user?.user_type !== "student"
-                          ? t(
-                              "course.student_enrollment_only",
-                              "Only students can enroll"
-                            )
-                          : t(
-                              "course.enrollment_status_unknown",
-                              "Enrollment status loading..."
-                            )}
-                    </div>
-                  )}
+                  <EnrollmentStatus
+                    isAuthenticated={isAuthenticated}
+                    userType={user?.user_type}
+                    isEnrolled={isEnrolled}
+                    isCancelled={isCancelled}
+                  />
                 </div>
               </div>
             </CardContent>
